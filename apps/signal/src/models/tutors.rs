@@ -86,6 +86,19 @@ impl Model {
             .await?;
         Ok(tutors)
     }
+
+    pub async fn find_all(db: &DatabaseConnection, search_params: &SearchParams) -> ModelResult<Vec<Self>> {
+        let tutors = tutors::Entity::find()
+            .filter(
+                model::query::condition()
+                    .eq(tutors::Column::City, search_params.subject.as_ref().unwrap())
+                    // .eq(tutors::Column::Embedding, PgVector::from(search_params_embedding))
+                    .build(),
+            )
+            .all(db)
+            .await?;
+        Ok(tutors)
+    }
 }
 
 // implement your write-oriented logic here
