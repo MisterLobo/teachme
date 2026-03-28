@@ -20,7 +20,14 @@
         "name": "next"
       }
     ],
-    "types": ["jest", "node"]
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "ignoreDeprecations": "6.0"
   },
   "include": [
     "**/*.ts",
@@ -29,7 +36,8 @@
     "**/*.jsx",
     "../../apps/web/.next/types/**/*.ts",
     "../../dist/apps/web/.next/types/**/*.ts",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    "**/*.css"
   ],
   "exclude": [
     "node_modules",
