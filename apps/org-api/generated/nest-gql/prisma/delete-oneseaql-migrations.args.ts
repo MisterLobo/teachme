@@ -1,0 +1,12 @@
+import { Field } from '@nestjs/graphql';
+import { ArgsType } from '@nestjs/graphql';
+import { seaql_migrationsWhereUniqueInput } from '../seaql-migrations/seaql-migrations-where-unique.input';
+import { Type } from 'class-transformer';
+
+@ArgsType()
+export class DeleteOneseaqlMigrationsArgs {
+
+    @Field(() => seaql_migrationsWhereUniqueInput, {nullable:false})
+    @Type(() => seaql_migrationsWhereUniqueInput)
+    where!: seaql_migrationsWhereUniqueInput;
+}

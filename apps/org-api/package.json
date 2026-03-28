@@ -1,0 +1,37 @@
+{
+  "name": "@teachme/org-api",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "api"
+  },
+  "scripts": {
+    "nest": "./node_modules/.bin/nest"
+  },
+  "dependencies": {
+    "@nestjs/apollo": "^13.2.4",
+    "@nestjs/cache-manager": "^3.1.0",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/graphql": "^13.2.4",
+    "cache-manager": "^7.2.8",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "graphql-type-json": "^0.3.2",
+    "prisma-graphql-type-decimal": "^4.0.2"
+  },
+  "devDependencies": {
+    "@as-integrations/express5": "^1.1.2",
+    "@graphql-codegen/cli": "^6.2.1",
+    "@graphql-codegen/typescript": "^5.0.9",
+    "@graphql-codegen/typescript-resolvers": "^5.1.7",
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "graphql": "^16.13.2",
+    "prisma": "^7.5.0",
+    "prisma-nestjs-graphql": "^21.2.0",
+    "ts-node": "^10.9.2",
+    "typegraphql-prisma": "^0.28.0",
+    "typegraphql-prisma-nestjs": "^0.2800.19",
+    "typescript": "^6.0.2"
+  }
+}

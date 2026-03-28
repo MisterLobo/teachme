@@ -11,6 +11,12 @@
     }
   ],
   "compilerOptions": {
-    "esModuleInterop": true
-  }
+    "esModuleInterop": true,
+    "ignoreDeprecations": "6.0"
+  },
+  "exclude": [
+    "./src/@generated/*.ts",
+    "./src/dal",
+    "./generated"
+  ]
 }
