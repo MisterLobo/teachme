@@ -28,12 +28,25 @@ sea-orm = { version = "1.1", features = [
   "sqlx-postgres",
   "runtime-tokio-rustls",
   "macros",
+  "seaography",
+  "with-uuid",
+  "with-json",
+  "with-chrono",
+  "with-time",
+  "postgres-vector"
 ] }
 chrono = { version = "0.4" }
 validator = { version = "0.20" }
-uuid = { version = "1.6", features = ["v4"] }
+uuid = { version = "1.6", features = ["v4", "v7"] }
 include_dir = { version = "0.7" }
 mediasoup = "0.20.0"
+lazy_static = "1.5.0"
+socketioxide = "0.18.2"
+jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+missive = { version = "0.6.2", features = ["local","smtp", "resend", "sendgrid", "gmail"] }
+reqwest = "0.13.2"
+fastembed = { version = "5", features = ["qwen3", "nomic-v2-moe"]}
+rust-task-queue = { version = "0.1", features = ["full"] }
 
 [[bin]]
 name = "signal-cli"
