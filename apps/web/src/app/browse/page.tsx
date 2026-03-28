@@ -38,8 +38,7 @@ export default function Page() {
   const [prompt, setPrompt] = useState<string>()
   const onSend = async (e: any) => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    console.log('prompt:', prompt, 'tz:', tz)
-    const url = new URL('/api/tutors/search', 'http://127.0.0.1:3004')
+    const url = new URL('/api/tutors/search', process.env.NEXT_PUBLIC_API_GATEWAY_URL)
     url.searchParams.set('prompt', prompt as string)
     url.searchParams.set('tz', tz)
     const response = await fetch(url, {
