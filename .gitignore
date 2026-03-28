@@ -49,3 +49,6 @@ out
 
 /target
 **/target
+
+.env*
+.venv/
