@@ -1,0 +1,146 @@
+networks:
+  local-kafka:
+    driver: bridge
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    restart: always
+    #command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: devdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgres/data
+
+  pgadmin:
+    image: dpage/pgadmin4:9.13
+    ports:
+      - "5050:80"
+    environment:
+      # Required by pgAdmin
+      PGADMIN_DEFAULT_EMAIL: demo@example.com
+      PGADMIN_DEFAULT_PASSWORD: secret
+
+      # Don't require the user to login
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+
+      # Don't require a "master" password after logging in
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    depends_on:
+      - postgres
+
+  maildev:
+    image: maildev/maildev
+    restart: always
+    environment:
+      - TZ=Asia/Manila
+      - MAILDEV_WEB_PORT=1080
+      - MAILDEV_SMTP_PORT=1025
+    ports:
+      - "8088:1080"
+      - "8085:1025"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+
+  stalwart:
+    image: stalwartlabs/stalwart:latest
+    container_name: stalwart
+    ports:
+      - "125:25"
+      - "1587:587"
+      - "1443:443"
+      - "18080:8080"
+      - "1465:465"
+      - "1143:143"
+      - "1993:993"
+      - "14190:4190"
+      - "1110:110"
+      - "1995:995"
+    volumes:
+      - stalwart-data:/opt/stalwart
+
+  #kiss-mail:
+  #  image: ghcr.io/pegasusheavy/kiss-mail
+  #  environment:
+  #    - KISS_MAIL_DOMAIN=smtp.teachme.local
+  #  ports:
+  #    - "8888:8080"
+  #    - "25:2525"
+  #    - "587:2525"
+  #    - "143:1143"
+  #    - "110:1100"
+  #  volumes:
+  #    - kiss-mail-data:/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    container_name: zookeeper
+    networks:
+      - local-kafka
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  broker:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: broker
+    networks:
+      - local-kafka
+    ports:
+    # To learn about configuring Kafka for access across networks see
+    # https://www.confluent.io/blog/kafka-client-cannot-connect-to-broker-on-aws-on-docker-etc/
+      - "9092:9092"
+      - "9093:9093"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LISTENERS: PLAINTEXT_INTERNAL://0.0.0.0:29092,PLAINTEXT_C://0.0.0.0:9093,PLAINTEXT_L://0.0.0.0:9092,
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_INTERNAL://broker:29092,PLAINTEXT_L://localhost:9092,PLAINTEXT_C://broker:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_L:PLAINTEXT,PLAINTEXT_C:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    networks:
+      - local-kafka
+    depends_on: 
+      - broker
+    ports:
+      - "17777:8080"
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=broker
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=broker:9093
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis7
+    restart: unless-stopped
+    ports:
+      - "6399:6379"
+    command: redis-server --save 20 1 --loglevel warning --requirepass yourstrongpassword
+    volumes:
+      - redis-data:/data
+
+volumes:
+  pgdata:
+    driver: local
+  redis-data:
+    driver: local
+  kiss-mail-data:
+    driver: local
+  stalwart-data:
+    driver: local

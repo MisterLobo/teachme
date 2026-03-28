@@ -1,0 +1,10 @@
+{
+  "collection": "@nestjs/schematics",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@nestjs/graphql"
+      }
+    ]
+  }
+}

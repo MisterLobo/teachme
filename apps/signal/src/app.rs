@@ -13,6 +13,7 @@ use loco_rs::{
 use migration::Migrator;
 use std::path::Path;
 
+use crate::{initializers::initialize_db, services::{NonClonableService, TestClonableService}};
 #[allow(unused_imports)]
 use crate::{controllers, models::_entities::users, tasks, workers::downloader::DownloadWorker};
 
@@ -42,14 +43,18 @@ impl Hooks for App {
     }
 
     async fn initializers(_ctx: &AppContext) -> Result<Vec<Box<dyn Initializer>>> {
-        Ok(vec![])
+        Ok(vec![
+            Box::new(initialize_db::DbInitializer),
+        ])
     }
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
         AppRoutes::with_default_routes() // controller routes below
+            .add_route(controllers::tutors::routes())
             .add_route(controllers::auth::routes())
     }
     async fn connect_workers(ctx: &AppContext, queue: &Queue) -> Result<()> {
+        queue.register(crate::workers::semantic_search::Worker::build(ctx)).await?;
         queue.register(DownloadWorker::build(ctx)).await?;
         Ok(())
     }
@@ -66,5 +71,15 @@ impl Hooks for App {
         db::seed::<users::ActiveModel>(&ctx.db, &base.join("users.yaml").display().to_string())
             .await?;
         Ok(())
+    }
+
+    async fn after_context(ctx: AppContext) -> Result<AppContext> {
+        let clone = TestClonableService;
+        let nonclone = NonClonableService;
+
+        ctx.shared_store.insert(clone);
+        ctx.shared_store.insert(nonclone);
+
+        Ok(ctx)
     }
 }

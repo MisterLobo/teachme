@@ -1,4 +1,5 @@
-import './global.css';
+import '@/styles/globals.css'
+// import '@/app/global.css'
 
 export const metadata = {
   title: 'Welcome to web',
@@ -11,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body>{children}</body>
     </html>
   );

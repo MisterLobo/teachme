@@ -1,2 +1,13 @@
 pub mod _entities;
 pub mod users;
+pub mod organizations;
+pub mod tutors;
+pub mod tenants;
+pub mod appointments;
+pub mod students;
+pub mod customers;
+pub mod tutorial_sessions;
+pub mod transactions;
+pub mod purchases;
+pub mod parents;
+pub mod search_prompts;

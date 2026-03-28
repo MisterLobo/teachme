@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "bun"
+}
+
+generator nestgraphql {
+  provider = "prisma-nestjs-graphql"
+  output   = "../generated/nest-gql"
+}
+
+generator typegraphql {
+  provider = "typegraphql-prisma-nestjs"
+  output   = "../src/dal"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public"]
+}
+
+model organizations {
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar
+
+  @@schema("public")
+}
+
+model seaql_migrations {
+  version    String @id @db.VarChar
+  applied_at BigInt
+
+  @@schema("public")
+}
+
+model tutors {
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  id               Int      @id @default(autoincrement())
+  first_name       String   @db.VarChar
+  last_name        String   @db.VarChar
+  country          String   @db.VarChar
+  primary_language String   @db.VarChar
+  organization     String?  @db.Uuid
+
+  @@schema("public")
+}
+
+model users {
+  created_at                 DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime  @default(now()) @db.Timestamptz(6)
+  id                         Int       @id @default(autoincrement())
+  pid                        String    @db.Uuid
+  email                      String    @unique @db.VarChar
+  password                   String    @db.VarChar
+  api_key                    String    @unique @db.VarChar
+  name                       String    @db.VarChar
+  reset_token                String?   @db.VarChar
+  reset_sent_at              DateTime? @db.Timestamptz(6)
+  email_verification_token   String?   @db.VarChar
+  email_verification_sent_at DateTime? @db.Timestamptz(6)
+  email_verified_at          DateTime? @db.Timestamptz(6)
+  magic_link_token           String?   @db.VarChar
+  magic_link_expiration      DateTime? @db.Timestamptz(6)
+
+  @@schema("public")
+}

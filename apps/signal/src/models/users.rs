@@ -21,6 +21,7 @@ pub struct RegisterParams {
     pub email: String,
     pub password: String,
     pub name: String,
+    pub cal_user_id: Option<i32>,
 }
 
 #[derive(Debug, Validate, Deserialize)]
@@ -241,9 +242,11 @@ impl Model {
         let password_hash =
             hash::hash_password(&params.password).map_err(|e| ModelError::Any(e.into()))?;
         let user = users::ActiveModel {
+            id: ActiveValue::Set(Uuid::now_v7()),
             email: ActiveValue::set(params.email.to_string()),
             password: ActiveValue::set(password_hash),
             name: ActiveValue::set(params.name.to_string()),
+            cal_user_id: ActiveValue::set(params.cal_user_id.clone()),
             ..Default::default()
         }
         .insert(&txn)
