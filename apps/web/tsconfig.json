@@ -20,14 +20,12 @@
         "name": "next"
       }
     ],
-    "baseUrl": "./src",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]
     },
     "typeRoots": [
       "node_modules/@types"
-    ],
-    "ignoreDeprecations": "6.0"
+    ]
   },
   "include": [
     "**/*.ts",

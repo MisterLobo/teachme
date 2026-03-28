@@ -5,3 +5,6 @@ members = ["apps/signal"]
 
 [workspace.dependencies]
 loco-rs = { version = "0.16" }
+
+#[patch.crates-io]
+#sea-orm = { version = "2.0.0-rc" }

@@ -1,0 +1,12 @@
+schema: ./src/schema.graphql
+documents: ./src/**/*.graphql
+generates:
+  ./src/generated/types.ts:
+    preset: client
+    plugins:
+      - typescript
+      - typescript-resolvers
+    config:
+      # Optional: map generated types to your actual data models
+      # mappers:
+      #   User: ../user/models#User

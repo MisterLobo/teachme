@@ -7,13 +7,7 @@
       "path": "./apps/web",
     },
     {
-      "path": "./apps/web-e2e"
-    },
-    {
-      "path": "./apps/org-api"
-    },
-    {
-      "path": "./apps/signal"
+      "path": "./apps/api"
     }
   ]
 }
