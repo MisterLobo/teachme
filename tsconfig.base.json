@@ -12,8 +12,7 @@
     "module": "esnext",
     "lib": ["es2020", "dom"],
     "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "ignoreDeprecations": "6.0"
+    "skipDefaultLibCheck": true
   },
   "exclude": ["node_modules", "tmp"]
 }
