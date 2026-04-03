@@ -11,10 +11,59 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "ownerId")]
     pub owner_id: Uuid,
+    #[serde(rename = "tenantType")]
     pub tenant_type: TenantType,
     pub name: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::appointments::Entity")]
+    Appointments,
+    #[sea_orm(has_one = "super::organizations::Entity")]
+    Organizations,
+    #[sea_orm(has_many = "super::transactions::Entity")]
+    Transactions,
+    #[sea_orm(has_many = "super::tutors::Entity")]
+    Tutors,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::OwnerId",
+        to = "super::users::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Users,
+}
+
+impl Related<super::appointments::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Appointments.def()
+    }
+}
+
+impl Related<super::organizations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Organizations.def()
+    }
+}
+
+impl Related<super::transactions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Transactions.def()
+    }
+}
+
+impl Related<super::tutors::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tutors.def()
+    }
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
+    }
+}

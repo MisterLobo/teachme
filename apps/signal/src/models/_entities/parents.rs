@@ -10,13 +10,44 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "firstName")]
     pub first_name: String,
+    #[serde(rename = "lastName")]
     pub last_name: String,
-    pub dob: Date,
+    pub dob: Option<Date>,
     pub sex: Option<String>,
+    #[serde(rename = "numChild")]
     pub num_child: Option<i32>,
+    #[serde(rename = "customerId")]
     pub customer_id: Option<Uuid>,
+    pub country: Option<String>,
+    pub currency: Option<String>,
+    pub language: Option<String>,
+    pub locale: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::customers::Entity",
+        from = "Column::CustomerId",
+        to = "super::customers::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Customers,
+    #[sea_orm(has_many = "super::students::Entity")]
+    Students,
+}
+
+impl Related<super::customers::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Customers.def()
+    }
+}
+
+impl Related<super::students::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Students.def()
+    }
+}

@@ -10,13 +10,49 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "firstName")]
     pub first_name: String,
+    #[serde(rename = "lastName")]
     pub last_name: String,
     pub dob: Option<Date>,
     pub gender: Option<String>,
+    #[serde(rename = "parentId")]
     pub parent_id: Option<Uuid>,
+    #[serde(rename = "customerId")]
     pub customer_id: Option<Uuid>,
+    #[serde(rename = "defaultCalendar")]
+    pub default_calendar: Option<String>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub calendars: Option<Json>,
+    pub country: Option<String>,
+    pub currency: Option<String>,
+    pub language: Option<String>,
+    pub locale: Option<String>,
+    pub timezone: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::appointments::Entity")]
+    Appointments,
+    #[sea_orm(
+        belongs_to = "super::parents::Entity",
+        from = "Column::ParentId",
+        to = "super::parents::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Parents,
+}
+
+impl Related<super::appointments::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Appointments.def()
+    }
+}
+
+impl Related<super::parents::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Parents.def()
+    }
+}

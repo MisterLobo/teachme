@@ -23,4 +23,33 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::appointments::Entity",
+        from = "Column::AppointmentId",
+        to = "super::appointments::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Appointments,
+    #[sea_orm(
+        belongs_to = "super::tenants::Entity",
+        from = "Column::TenantId",
+        to = "super::tenants::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Tenants,
+}
+
+impl Related<super::appointments::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Appointments.def()
+    }
+}
+
+impl Related<super::tenants::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenants.def()
+    }
+}

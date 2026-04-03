@@ -9,6 +9,8 @@ pub use super::search_prompts::Entity as SearchPrompts;
 pub use super::students::Entity as Students;
 pub use super::tenants::Entity as Tenants;
 pub use super::transactions::Entity as Transactions;
+pub use super::tutor_boosts::Entity as TutorBoosts;
+pub use super::tutor_reviews::Entity as TutorReviews;
 pub use super::tutorial_sessions::Entity as TutorialSessions;
 pub use super::tutors::Entity as Tutors;
 pub use super::users::Entity as Users;

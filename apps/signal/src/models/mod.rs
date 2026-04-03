@@ -11,3 +11,6 @@ pub mod transactions;
 pub mod purchases;
 pub mod parents;
 pub mod search_prompts;
+pub mod tutor_embeddings;
+pub mod tutor_boosts;
+pub mod tutor_reviews;

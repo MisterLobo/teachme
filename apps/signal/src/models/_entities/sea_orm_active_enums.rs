@@ -10,14 +10,10 @@ pub enum CustomerType {
     StudentLearner,
     #[sea_orm(string_value = "parent_guardian")]
     ParentGuardian,
-}
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
-#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "owner_type")]
-pub enum OwnerType {
-    #[sea_orm(string_value = "student_learner")]
-    StudentLearner,
-    #[sea_orm(string_value = "parent_guardian")]
-    ParentGuardian,
+    #[sea_orm(string_value = "tutor_single")]
+    TutorSingle,
+    #[sea_orm(string_value = "tutor_organization")]
+    TutorOrganization,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "tenant_type")]
@@ -26,4 +22,12 @@ pub enum TenantType {
     Individual,
     #[sea_orm(string_value = "organization")]
     Organization,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "user_role")]
+pub enum UserRole {
+    #[sea_orm(string_value = "tenant")]
+    Tenant,
+    #[sea_orm(string_value = "customer")]
+    Customer,
 }

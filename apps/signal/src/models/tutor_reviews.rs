@@ -1,6 +1,6 @@
-use sea_orm::{ActiveValue, entity::prelude::*};
-pub use super::_entities::tutorial_sessions::{ActiveModel, Model, Entity};
-pub type TutorialSessions = Entity;
+use sea_orm::entity::prelude::*;
+pub use super::_entities::tutor_reviews::{ActiveModel, Model, Entity};
+pub type TutorReviews = Entity;
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {

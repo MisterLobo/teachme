@@ -4,38 +4,28 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "organizations")]
+#[sea_orm(table_name = "tutor_boosts")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    pub name: String,
-    #[serde(rename = "contactEmail")]
-    pub contact_email: String,
-    #[serde(rename = "tenantId")]
-    pub tenant_id: Uuid,
-    pub size: Option<i32>,
+    pub tutor_id: Uuid,
+    pub boost_start: Option<DateTimeWithTimeZone>,
+    pub boost_end: Option<DateTimeWithTimeZone>,
+    pub boost_duration: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::tenants::Entity",
-        from = "Column::TenantId",
-        to = "super::tenants::Column::Id",
+        belongs_to = "super::tutors::Entity",
+        from = "Column::TutorId",
+        to = "super::tutors::Column::Id",
         on_update = "Cascade",
         on_delete = "Cascade"
     )]
-    Tenants,
-    #[sea_orm(has_many = "super::tutors::Entity")]
     Tutors,
-}
-
-impl Related<super::tenants::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Tenants.def()
-    }
 }
 
 impl Related<super::tutors::Entity> for Entity {

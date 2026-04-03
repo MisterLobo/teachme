@@ -10,13 +10,77 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "tenantId")]
     pub tenant_id: Uuid,
+    #[serde(rename = "hostId")]
     pub host_id: Uuid,
+    #[serde(rename = "attendeeId")]
     pub attendee_id: Uuid,
+    #[serde(rename = "startAt")]
     pub start_at: DateTimeWithTimeZone,
     pub duration: i32,
-    pub cal_booking_id: Option<String>,
+    #[serde(rename = "calBookingId")]
+    pub cal_booking_id: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::students::Entity",
+        from = "Column::AttendeeId",
+        to = "super::students::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Students,
+    #[sea_orm(
+        belongs_to = "super::tenants::Entity",
+        from = "Column::TenantId",
+        to = "super::tenants::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Tenants,
+    #[sea_orm(has_many = "super::transactions::Entity")]
+    Transactions,
+    #[sea_orm(has_many = "super::tutorial_sessions::Entity")]
+    TutorialSessions,
+    #[sea_orm(
+        belongs_to = "super::tutors::Entity",
+        from = "Column::HostId",
+        to = "super::tutors::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Tutors,
+}
+
+impl Related<super::students::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Students.def()
+    }
+}
+
+impl Related<super::tenants::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenants.def()
+    }
+}
+
+impl Related<super::transactions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Transactions.def()
+    }
+}
+
+impl Related<super::tutorial_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TutorialSessions.def()
+    }
+}
+
+impl Related<super::tutors::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tutors.def()
+    }
+}
