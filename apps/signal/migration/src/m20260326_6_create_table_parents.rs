@@ -13,12 +13,17 @@ impl MigrationTrait for Migration {
                 
                 ("first_name", ColType::String),
                 ("last_name", ColType::String),
-                ("dob", ColType::Date),
+                ("dob", ColType::DateNull),
                 ("sex", ColType::StringNull),
                 ("num_child", ColType::IntegerNull),
                 ("customer_id", ColType::UuidNull),
+                ("country", ColType::StringNull),
+                ("currency", ColType::StringNull),
+                ("language", ColType::StringNull),
+                ("locale", ColType::StringNull),
             ],
             &[
+                ("customers", "customer_id")
             ]
         ).await
     }

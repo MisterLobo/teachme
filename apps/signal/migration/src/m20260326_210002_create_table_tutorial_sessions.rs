@@ -21,7 +21,9 @@ impl MigrationTrait for Migration {
                 ("session_length_secs", ColType::IntegerNull),
                 ("tenant_id", ColType::Uuid),
             ],
-            &[],
+            &[
+                ("appointments", "appointment_id"),
+            ],
         ).await
     }
 

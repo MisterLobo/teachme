@@ -18,8 +18,17 @@ impl MigrationTrait for Migration {
                 ("gender", ColType::StringNull),
                 ("parent_id", ColType::UuidNull),
                 ("customer_id", ColType::UuidNull),
+                ("default_calendar", ColType::StringNull),
+                ("calendars", ColType::JsonBinaryNull),
+                ("country", ColType::StringNull),
+                ("currency", ColType::StringNull),
+                ("language", ColType::StringNull),
+                ("locale", ColType::StringNull),
+                ("timezone", ColType::StringNull),
             ],
-            &[],
+            &[
+                ("parents", "parent_id"),
+            ],
         ).await
     }
 

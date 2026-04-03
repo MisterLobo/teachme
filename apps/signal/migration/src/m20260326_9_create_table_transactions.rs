@@ -23,7 +23,10 @@ impl MigrationTrait for Migration {
                 ("biller", ColType::UuidNull),
                 ("billed_to", ColType::UuidNull),
             ],
-            &[],
+            &[
+                ("tenants", "tenant_id"),
+                ("appointments", "appointment_id"),
+            ],
         ).await
     }
 

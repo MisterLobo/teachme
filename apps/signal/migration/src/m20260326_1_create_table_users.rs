@@ -1,5 +1,5 @@
 use loco_rs::schema::{ColType, create_table, drop_table};
-use sea_orm_migration::{prelude::*, schema::*};
+use sea_orm_migration::{prelude::*, schema::*, sea_orm::sqlx::raw_sql};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -44,8 +44,13 @@ impl MigrationTrait for Migration {
                 ("magic_link_token", ColType::StringNull),
                 ("magic_link_expiration", ColType::TimestampWithTimeZoneNull),
                 ("cal_user_id", ColType::IntegerNull),
+                ("cal_username", ColType::TextNull),
                 ("phone", ColType::StringNull),
                 ("phone_verified_at", ColType::TimestampWithTimeZoneNull),
+                ("role", ColType::Enum(
+                    "user_role".into(),
+                    vec!["tenant".into(), "customer".into()],
+                )),
             ],
             &[],
         ).await

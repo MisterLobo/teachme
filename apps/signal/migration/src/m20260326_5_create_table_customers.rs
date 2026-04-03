@@ -12,17 +12,26 @@ impl MigrationTrait for Migration {
             "customers",
             &[
                 ("id", ColType::PkUuid),
+                ("user_id", ColType::UuidNull),
                 ("customer_type", ColType::Enum(
                     "customer_type".into(),
-                    vec!["student_learner".into(), "parent_guardian".into()]
+                    vec![
+                        "student_learner".into(),
+                        "parent_guardian".into(),
+                        "tutor_single".into(),
+                        "tutor_organization".into(),
+                    ],
                 )),
                 ("reference_id", ColType::Uuid),
                 ("plan", ColType::StringNull),
                 ("stripe_customer_id", ColType::StringNull),
+                ("stripe_subscription_id", ColType::StringNull),
                 ("status", ColType::String),
                 ("trial_ends_at", ColType::TimestampWithTimeZoneNull),
             ],
-            &[],
+            &[
+                ("users", "user_id"),
+            ],
         ).await
     }
 

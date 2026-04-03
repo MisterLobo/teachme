@@ -7,7 +7,7 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, m: &SchemaManager) -> Result<(), DbErr> {
-        create_table(m, "search_prompts",
+        /* create_table(m, "search_prompts",
             &[
                 ("id", ColType::PkUuid),
                 ("owner_id", ColType::UuidNull),
@@ -17,7 +17,14 @@ impl MigrationTrait for Migration {
             ],
             &[
             ]
-        ).await
+        ).await */
+        let table = table_auto("search_prompts")
+            .col(pk_uuid("id"))
+            .col(enum_type_null("owner_type", "customer_type"))
+            .col(text_null("prompt_text"))
+            .col(ColumnDef::new("prompt_embedding").vector(Some(384)).not_null())
+            .to_owned();
+        m.create_table(table).await
     }
 
     async fn down(&self, m: &SchemaManager) -> Result<(), DbErr> {

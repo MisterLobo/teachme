@@ -15,8 +15,11 @@ impl MigrationTrait for Migration {
                 ("name", ColType::String),
                 ("contact_email", ColType::String),
                 ("tenant_id", ColType::Uuid),
+                ("size", ColType::IntegerNull),
             ],
-            &[],
+            &[
+                ("tenants", "tenant_id"),
+            ],
         ).await
     }
 

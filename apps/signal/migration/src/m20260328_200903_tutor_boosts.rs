@@ -1,0 +1,29 @@
+use loco_rs::schema::*;
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, m: &SchemaManager) -> Result<(), DbErr> {
+        create_table(m, "tutor_boosts",
+            &[
+            
+            ("id", ColType::PkUuid),
+            
+            ("tutor_id", ColType::Uuid),
+            ("boost_start", ColType::TimestampWithTimeZoneNull),
+            ("boost_end", ColType::TimestampWithTimeZoneNull),
+            ("boost_duration", ColType::IntegerNull),
+            ],
+            &[
+                ("tutors", "tutor_id"),
+            ]
+        ).await
+    }
+
+    async fn down(&self, m: &SchemaManager) -> Result<(), DbErr> {
+        drop_table(m, "tutor_boosts").await
+    }
+}
