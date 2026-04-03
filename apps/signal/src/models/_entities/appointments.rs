@@ -18,6 +18,8 @@ pub struct Model {
     pub attendee_id: Uuid,
     #[serde(rename = "startAt")]
     pub start_at: DateTimeWithTimeZone,
+    #[serde(rename = "endAt")]
+    pub end_at: DateTimeWithTimeZone,
     pub duration: i32,
     #[serde(rename = "calBookingId")]
     pub cal_booking_id: Option<i32>,

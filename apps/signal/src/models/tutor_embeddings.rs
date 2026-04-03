@@ -39,7 +39,7 @@ impl ActiveModel {
     ) -> ModelResult<()> {
         let txn = db.begin().await?;
 
-        let tutor = ActiveModel {
+        let embedding = ActiveModel {
             id: ActiveValue::Set(params.tutor_id),
             embedding: ActiveValue::Set(params.embedding.clone()),
             ..Default::default()

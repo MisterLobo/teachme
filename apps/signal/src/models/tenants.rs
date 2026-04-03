@@ -1,7 +1,7 @@
-use loco_rs::model::{self, ModelError, ModelResult};
+use loco_rs::model::{self, ModelResult};
 use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
-use crate::models::{_entities::{sea_orm_active_enums::TenantType, tenants}, users::RegisterParams};
+use crate::models::{_entities::{sea_orm_active_enums::TenantType, tenants}};
 
 pub use super::_entities::tenants::{ActiveModel, Model, Entity};
 pub type Tenants = Entity;

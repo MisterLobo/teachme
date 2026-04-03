@@ -10,13 +10,19 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "tutorId")]
     pub tutor_id: Uuid,
+    #[serde(rename = "studentId")]
     pub student_id: Uuid,
     pub status: Option<String>,
     pub progress: Option<String>,
+    #[serde(rename = "appointmentId")]
     pub appointment_id: Uuid,
+    #[serde(rename = "sessionLink")]
     pub session_link: Option<String>,
+    #[serde(rename = "sessionLength")]
     pub session_length_secs: Option<i32>,
+    #[serde(rename = "tenantId")]
     pub tenant_id: Uuid,
 }
 
