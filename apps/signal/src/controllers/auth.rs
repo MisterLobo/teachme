@@ -1,15 +1,19 @@
 use crate::{
     mailers::auth::AuthMailer,
     models::{
-        _entities::users,
-        users::{LoginParams, RegisterParams},
+        self, _entities::{sea_orm_active_enums::{self, CustomerType, TenantType}, users}, customers::{self, CustomerParams}, parents, students, tenants::{self, TenantParams}, tutors::{self, CreateParams}, users::{LoginParams, RegisterParams, UserRole}
     },
-    views::auth::{CurrentResponse, LoginResponse},
+    views::auth::{CurrentResponse, LoginResponse}, workers::create_tutor_embedding::{self, TutorDocument, WorkerArgs},
 };
-use loco_rs::prelude::*;
+use axum::http::{HeaderMap, HeaderValue};
+use loco_rs::prelude::{format::json, *};
+use qdrant_client::{Payload, Qdrant, qdrant::PointStruct};
 use regex::Regex;
+use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
+use serde_json::{Value, value::Serializer};
+use slugify::slugify;
+use std::{collections::HashMap, env, sync::OnceLock};
 
 pub static EMAIL_DOMAIN_RE: OnceLock<Regex> = OnceLock::new();
 
@@ -40,6 +44,12 @@ pub struct ResendVerificationParams {
     pub email: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RegisterResponse {
+    user: users::Model,
+    tenant: tenants::Model,
+}
+
 /// Register function creates a new user with the given parameters and sends a
 /// welcome email to the user
 #[debug_handler]
@@ -47,6 +57,7 @@ async fn register(
     State(ctx): State<AppContext>,
     Json(params): Json<RegisterParams>,
 ) -> Result<Response> {
+    tracing::debug!("params: {:?}", &params);
     let res = users::Model::create_with_password(&ctx.db, &params).await;
 
     let user = match res {
@@ -65,6 +76,109 @@ async fn register(
         .into_active_model()
         .set_email_verification_sent(&ctx.db)
         .await?;
+
+    if let Some(role) = params.role {
+        match role {
+            UserRole::Tenant(t) => {
+                let tenant_params = TenantParams {
+                    owner_id: user.id,
+                    tenant_type: t,
+                    name: None,
+                };
+
+                // tenant_params.tenant_type = params.tenant_type.unwrap();
+                let tenant = tenants::Model::create(&ctx.db, &tenant_params).await?;
+
+                match t {
+                    TenantType::Individual => {
+                        let cp = CreateParams {
+                            first_name: params.first_name.unwrap_or_default(),
+                            last_name: params.last_name.unwrap_or_default(),
+                            country: params.country.unwrap_or_default(),
+                            currency: params.currency,
+                            dob: params.dob,
+                            tenant_id: Some(tenant.id),
+                            timezone: params.timezone,
+                            categories: params.categories,
+                            subjects: params.subjects,
+                            primary_language: params.primary_language,
+                            session_duration: params.session_duration,
+                            session_price: params.session_price,
+                            cal_metadata: params.cal_metadata.clone(),
+                            ..Default::default()
+                        };
+                        let tutor = tutors::Model::create_tutor(&ctx.db, &cp).await?;
+                        let model = tutor.clone();
+                        let document = format!(
+                            "categories: {0}, subjects: {1}, country: {2}, currency: {3}, bio: {4}, session_price: {5:.2}, language: {6}, session_duration: {7}",
+                            &tutor.categories.clone().unwrap_or_default(),
+                            &tutor.subjects.clone().unwrap_or_default(),
+                            &tutor.country,
+                            &tutor.currency,
+                            &tutor.bio.clone().unwrap_or_default(),
+                            &tutor.session_price.clone().unwrap_or_default(),
+                            &tutor.primary_language.clone().unwrap_or_default(),
+                            &tutor.session_duration,
+                        );
+                        create_tutor_embedding::Worker::build(&ctx)
+                            .perform(WorkerArgs {
+                                tutor: Some(model),
+                                prompt: document.into(),
+                            })
+                            .await?;
+                    },
+                    TenantType::Organization => {
+                        let cp = models::organizations::CreateParams {
+                            name: params.name.unwrap_or_default(),
+                            contact_email: Some(params.email),
+                            country: params.country,
+                            timezone: params.timezone,
+                            ..Default::default()
+                        };
+                    },
+                }
+            },
+            UserRole::Customer(c) => {
+                let customer_params = CustomerParams {
+                    customer_type: c,
+                    user_id: user.id.clone(),
+                    name: Some(user.name.clone()),
+                };
+
+                let customer = customers::Model::create(&ctx.db, &customer_params).await?;
+
+                match c {
+                    CustomerType::StudentLearner => {
+                        let cp = students::CreateParams {
+                            first_name: params.first_name.unwrap_or_default(),
+                            last_name: params.last_name.unwrap_or_default(),
+                            country: params.country.unwrap_or_default(),
+                            currency: params.currency,
+                            dob: params.dob,
+                            timezone: params.timezone,
+                            customer_id: customer.id,
+                            ..Default::default()
+                        };
+                        students::Model::create(&ctx.db, &cp).await?;
+                    },
+                    CustomerType::ParentGuardian => {
+                        let cp = parents::CreateParams {
+                            first_name: params.first_name.unwrap_or_default(),
+                            last_name: params.last_name.unwrap_or_default(),
+                            country: params.country.unwrap_or_default(),
+                            currency: params.currency,
+                            dob: params.dob,
+                            timezone: params.timezone,
+                            customer_id: customer.id,
+                            ..Default::default()
+                        };
+                        parents::Model::create(&ctx.db, &cp).await?;
+                    },
+                    _ => {},
+                }
+            },
+        };
+    }
 
     AuthMailer::send_welcome(&ctx, &user).await?;
 
@@ -151,8 +265,20 @@ async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -
 
     let jwt_secret = ctx.config.get_jwt_config()?;
 
+    // let tenant = tenants::Model::find_by_user(&ctx.db, &user.id).await?;
+
+    let tenant_id = match user.role {
+        sea_orm_active_enums::UserRole::Tenant => {
+            let tenant = tenants::Model::find_by_user(&ctx.db, &user.id).await?;
+            tenant.unwrap().id.to_string()
+        },
+        sea_orm_active_enums::UserRole::Customer => {
+            let customer = customers::Model::find_by_user(&ctx.db, &user.id).await?;
+            customer.id.to_string()
+        },
+    };
     let token = user
-        .generate_jwt(&jwt_secret.secret, jwt_secret.expiration)
+        .generate_jwt(&jwt_secret.secret, jwt_secret.expiration, Some(tenant_id))
         .or_else(|_| unauthorized("unauthorized!"))?;
 
     format::json(LoginResponse::new(&user, &token))
@@ -161,7 +287,27 @@ async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -
 #[debug_handler]
 async fn current(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
-    format::json(CurrentResponse::new(&user))
+    let profile = match user.role {
+        sea_orm_active_enums::UserRole::Tenant => {
+            let tenant = tenants::Model::find_by_user(&ctx.db, &user.id).await?;
+            serde_json::json!(tenant)
+        },
+        sea_orm_active_enums::UserRole::Customer => {
+            let customer = customers::Model::find_by_user(&ctx.db, &user.id).await?;
+            serde_json::json!(customer)
+        },
+    };
+    let mut res = CurrentResponse::new(&user);
+    res.profile = Some(profile);
+    format::json(res)
+}
+
+#[debug_handler]
+async fn profile(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    format::empty_json()
 }
 
 /// Magic link authentication provides a secure and passwordless way to log in to the application.
@@ -219,8 +365,10 @@ async fn magic_link_verify(
 
     let jwt_secret = ctx.config.get_jwt_config()?;
 
+    let tenant = tenants::Model::find_by_user(&ctx.db, &user.id).await?;
+
     let token = user
-        .generate_jwt(&jwt_secret.secret, jwt_secret.expiration)
+        .generate_jwt(&jwt_secret.secret, jwt_secret.expiration, Some(tenant.unwrap().id.to_string()))
         .or_else(|_| unauthorized("unauthorized!"))?;
 
     format::json(LoginResponse::new(&user, &token))
@@ -270,4 +418,5 @@ pub fn routes() -> Routes {
         .add("/magic-link", post(magic_link))
         .add("/magic-link/{token}", get(magic_link_verify))
         .add("/resend-verification-mail", post(resend_verification_email))
+        .add("/profile", get(profile))
 }
