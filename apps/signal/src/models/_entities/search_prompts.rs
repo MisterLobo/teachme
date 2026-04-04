@@ -4,7 +4,7 @@ use super::sea_orm_active_enums::CustomerType;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "search_prompts")]
 pub struct Model {
     pub created_at: DateTime,
@@ -14,6 +14,8 @@ pub struct Model {
     pub owner_type: Option<CustomerType>,
     #[sea_orm(column_type = "Text", nullable)]
     pub prompt_text: Option<String>,
+    #[sea_orm(column_type = "custom(\"vector\")")]
+    pub prompt_embedding: PgVector,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

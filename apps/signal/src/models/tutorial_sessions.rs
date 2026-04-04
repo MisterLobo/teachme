@@ -1,3 +1,4 @@
+use loco_rs::model::ModelResult;
 use sea_orm::{ActiveValue, entity::prelude::*};
 pub use super::_entities::tutorial_sessions::{ActiveModel, Model, Entity};
 pub type TutorialSessions = Entity;
@@ -20,7 +21,19 @@ impl ActiveModelBehavior for ActiveModel {
 }
 
 // implement your read-oriented logic here
-impl Model {}
+impl Model {
+    pub async fn create_session(
+        db: &DatabaseConnection,
+    ) -> ModelResult<Self> {
+        let row = ActiveModel {
+            id: ActiveValue::Set(Uuid::now_v7()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await?;
+        Ok(row)
+    }
+}
 
 // implement your write-oriented logic here
 impl ActiveModel {}

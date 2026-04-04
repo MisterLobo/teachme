@@ -10,9 +10,13 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "tutorId")]
     pub tutor_id: Uuid,
+    #[serde(rename = "boostStart")]
     pub boost_start: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "boostEnd")]
     pub boost_end: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "boostDuration")]
     pub boost_duration: Option<i32>,
 }
 

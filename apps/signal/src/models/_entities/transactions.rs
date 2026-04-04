@@ -10,28 +10,27 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "initiatedAt")]
     pub initiated_at: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "completedAt")]
     pub completed_at: Option<DateTimeWithTimeZone>,
     pub status: Option<String>,
+    #[serde(rename = "appointmentId")]
     pub appointment_id: Option<Uuid>,
     pub purpose: Option<String>,
+    #[serde(rename = "stripePaymentId")]
     pub stripe_payment_intent_id: Option<String>,
+    #[serde(rename = "stripeInvoiceId")]
     pub stripe_invoice_id: Option<String>,
+    #[serde(rename = "tenantId")]
     pub tenant_id: Option<Uuid>,
     pub biller: Option<Uuid>,
+    #[serde(rename = "billedTo")]
     pub billed_to: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::appointments::Entity",
-        from = "Column::AppointmentId",
-        to = "super::appointments::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
-    )]
-    Appointments,
     #[sea_orm(
         belongs_to = "super::tenants::Entity",
         from = "Column::TenantId",
@@ -40,12 +39,6 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tenants,
-}
-
-impl Related<super::appointments::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Appointments.def()
-    }
 }
 
 impl Related<super::tenants::Entity> for Entity {

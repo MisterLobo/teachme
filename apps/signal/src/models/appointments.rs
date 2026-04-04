@@ -221,6 +221,7 @@ impl Model {
             host_id: ActiveValue::Set(params.host_id),
             attendee_id: ActiveValue::Set(*attendee_id),
             start_at: ActiveValue::Set(params.date_time),
+            end_at: ActiveValue::Set(params.date_time + Duration::minutes(params.duration.into())),
             duration: ActiveValue::Set(params.duration),
             cal_booking_id: ActiveValue::Set(Some(params.cal_booking_id)),
             ..Default::default()
@@ -231,38 +232,11 @@ impl Model {
         txn.commit().await?;
 
         Ok(appt)
-        // Err(ModelError::Message("not allowed".into()))
     }
 }
 
 // implement your write-oriented logic here
-impl ActiveModel {
-    /* pub async fn create_appointment(
-        db: &DatabaseConnection,
-        params: &CreateParams,
-        tenant_id: &Uuid,
-        attendee_id: &Uuid,
-    ) -> ModelResult<Self> {
-        let txn = db.begin().await?;
-
-        let appt = ActiveModel {
-            tenant_id: ActiveValue::Set(*tenant_id),
-            host_id: ActiveValue::Set(params.host_id),
-            attendee_id: ActiveValue::Set(*attendee_id),
-            start_at: ActiveValue::Set(params.date_time),
-            duration: ActiveValue::Set(params.duration),
-            cal_booking_id: ActiveValue::Set(params.cal_booking_id),
-            ..Default::default()
-        }
-        .save(&txn)
-        .await?;
-
-        txn.commit().await?;
-
-        Ok(appt)
-        // Err(ModelError::Message("not allowed".into()))
-    } */
-}
+impl ActiveModel {}
 
 // implement your custom finders, selectors oriented logic here
 impl Entity {}

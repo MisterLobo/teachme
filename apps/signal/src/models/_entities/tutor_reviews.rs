@@ -10,11 +10,15 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    #[serde(rename = "tutorId")]
     pub tutor_id: Uuid,
+    #[serde(rename = "reviewerId")]
     pub reviewer_id: Uuid,
+    #[serde(rename = "reviewerType")]
     pub reviewer_type: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub comments: Option<String>,
+    #[serde(rename = "ratingStars")]
     pub rating_stars: Option<i32>,
 }
 

@@ -24,9 +24,9 @@ pub enum Relation {
     Appointments,
     #[sea_orm(has_one = "super::organizations::Entity")]
     Organizations,
-    #[sea_orm(has_many = "super::transactions::Entity")]
+    #[sea_orm(has_one = "super::transactions::Entity")]
     Transactions,
-    #[sea_orm(has_many = "super::tutors::Entity")]
+    #[sea_orm(has_one = "super::tutors::Entity")]
     Tutors,
     #[sea_orm(
         belongs_to = "super::users::Entity",
