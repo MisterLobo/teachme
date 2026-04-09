@@ -1,6 +1,17 @@
-use sea_orm::entity::prelude::*;
+use loco_rs::model::ModelResult;
+use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
+use serde::{Deserialize, Serialize};
 pub use super::_entities::tutor_boosts::{ActiveModel, Model, Entity};
 pub type TutorBoosts = Entity;
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoostParams {
+    pub tutor_id: Uuid,
+    pub boost_start: Option<DateTimeWithTimeZone>,
+    pub boost_end: Option<DateTimeWithTimeZone>,
+    pub boost_duration: Option<i32>,
+}
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {
@@ -20,7 +31,28 @@ impl ActiveModelBehavior for ActiveModel {
 }
 
 // implement your read-oriented logic here
-impl Model {}
+impl Model {
+    pub async fn create(
+        db: &DatabaseConnection,
+        params: &BoostParams,
+    ) -> ModelResult<Self> {
+        let txn = db.begin().await?;
+
+        let row = ActiveModel {
+            tutor_id: ActiveValue::set(params.tutor_id.clone()),
+            boost_duration: ActiveValue::Set(params.boost_duration.clone()),
+            boost_start: ActiveValue::Set(params.boost_start.clone()),
+            boost_end: ActiveValue::Set(params.boost_end.clone()),
+            ..Default::default()
+        }
+        .insert(&txn)
+        .await?;
+
+        txn.commit().await?;
+
+        Ok(row)
+    }
+}
 
 // implement your write-oriented logic here
 impl ActiveModel {}

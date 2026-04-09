@@ -1,5 +1,5 @@
 use loco_rs::model::ModelResult;
-use sea_orm::{ActiveValue, IntoActiveModel, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 pub use super::_entities::tutorial_sessions::{ActiveModel, Model, Entity};
 pub type TutorialSessions = Entity;
