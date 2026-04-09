@@ -6,7 +6,6 @@ use loco_rs::prelude::*;
 use reqwest::StatusCode;
 use sea_orm::TryIntoModel;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::models::{_entities::sea_orm_active_enums::CustomerType, appointments::{self, AppointmentQueryParams, CreateParams}, customers, students, tenants, tutors, users};
 
@@ -21,7 +20,6 @@ pub async fn index(
     State(ctx): State<AppContext>,
     params: Query<AppointmentQueryParams>,
 ) -> Result<Response> {
-    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
     let tenant_id = auth.claims.claims.get("tenant_id");
     let user_type = users::Model::get_user_type(&ctx.db, &auth.claims.pid).await;
     if tenant_id.as_ref().is_none() {
@@ -41,7 +39,6 @@ async fn create(
     State(ctx): State<AppContext>,
     Json(body): Json<CreateParams>,
 ) -> Result<Response> {
-    // let tenant_id: Uuid = serde_json::from_value(auth.claims.claims.get("tenant_id").unwrap().clone()).unwrap();
     tracing::debug!("host_id: {:?}", &body.host_id);
     let tutor = tutors::Model::find_by_id(&ctx.db, &body.host_id).await?;
     if tutor.is_none() {
@@ -64,15 +61,14 @@ async fn create(
         let appt_id = match c.customer_type {
             CustomerType::StudentLearner => {
                 let student = students::Model::find_by_customer(&ctx.db, &c.id).await?;
-                // tracing::debug!("attendee: {:?}, host: {:?}", &student.id, &tenant_id);
                 let appt = appointments::Model::create_appointment(
                     &ctx.db,
                     &body,
                     &tenant_id,
                     &student.id,
                 ).await?;
-                Some(appt.try_into_model().unwrap().id)
-                // None
+                let appt_id = appt.try_into_model().unwrap().id;
+                Some(appt_id)
             },
             CustomerType::ParentGuardian => {
                 None

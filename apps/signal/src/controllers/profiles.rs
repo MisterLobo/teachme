@@ -160,8 +160,6 @@ async fn update(
     State(ctx): State<AppContext>,
     Json(params): Json<UpdateParams>,
 ) -> Result<Response> {
-    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
-    let user_type = users::Model::get_user_type(&ctx.db, &auth.claims.pid).await;
     let profile = get_profile_type(&auth, &ctx).await?;
     match profile {
         ProfileType::Individual(m) => {

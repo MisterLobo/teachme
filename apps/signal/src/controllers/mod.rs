@@ -5,3 +5,4 @@ pub mod appointments;
 pub mod students;
 pub mod users;
 pub mod profiles;
+pub mod stripe;

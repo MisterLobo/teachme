@@ -3,7 +3,7 @@ use crate::{
     models::{
         self, _entities::{sea_orm_active_enums::{self, CustomerType, TenantType}, users}, customers::{self, CustomerParams}, parents, students, tenants::{self, TenantParams}, tutors::{self, CreateParams}, users::{LoginParams, RegisterParams, UserRole}
     },
-    views::auth::{CurrentResponse, LoginResponse}, workers::create_tutor_embedding::{self, TutorDocument, WorkerArgs},
+    views::auth::{CurrentResponse, LoginResponse}, workers::{create_stripe_connect, create_stripe_customer, create_tutor_embedding::{self, TutorDocument, WorkerArgs}},
 };
 use axum::http::{HeaderMap, HeaderValue};
 use loco_rs::prelude::{format::json, *};
@@ -77,34 +77,34 @@ async fn register(
         .set_email_verification_sent(&ctx.db)
         .await?;
 
-    if let Some(role) = params.role {
+    if let Some(ref role) = params.role {
         match role {
             UserRole::Tenant(t) => {
                 let tenant_params = TenantParams {
                     owner_id: user.id,
-                    tenant_type: t,
+                    tenant_type: *t,
                     name: None,
                 };
 
                 // tenant_params.tenant_type = params.tenant_type.unwrap();
                 let tenant = tenants::Model::create(&ctx.db, &tenant_params).await?;
-
+                let p = params.clone();
                 match t {
                     TenantType::Individual => {
                         let cp = CreateParams {
-                            first_name: params.first_name.unwrap_or_default(),
-                            last_name: params.last_name.unwrap_or_default(),
-                            country: params.country.unwrap_or_default(),
-                            currency: params.currency,
-                            dob: params.dob,
+                            first_name: p.first_name.unwrap_or_default(),
+                            last_name: p.last_name.unwrap_or_default(),
+                            country: p.country.unwrap_or_default(),
+                            currency: p.currency,
+                            dob: p.dob,
                             tenant_id: Some(tenant.id),
-                            timezone: params.timezone,
-                            categories: params.categories,
-                            subjects: params.subjects,
-                            primary_language: params.primary_language,
-                            session_duration: params.session_duration,
-                            session_price: params.session_price,
-                            cal_metadata: params.cal_metadata.clone(),
+                            timezone: p.timezone,
+                            categories: p.categories,
+                            subjects: p.subjects,
+                            primary_language: p.primary_language,
+                            session_duration: p.session_duration,
+                            session_price: p.session_price,
+                            cal_metadata: p.cal_metadata.clone(),
                             ..Default::default()
                         };
                         let tutor = tutors::Model::create_tutor(&ctx.db, &cp).await?;
@@ -120,9 +120,19 @@ async fn register(
                             &tutor.primary_language.clone().unwrap_or_default(),
                             &tutor.session_duration,
                         );
-                        create_tutor_embedding::Worker::build(&ctx)
-                            .perform(WorkerArgs {
-                                tutor: Some(model),
+
+                        create_stripe_connect::Worker::perform_later(
+                            &ctx,
+                            create_stripe_connect::WorkerArgs {
+                                params: Some(params.clone()),
+                                tutor: Some(model.clone()),
+                            })
+                            .await?;
+
+                        create_tutor_embedding::Worker::perform_later(
+                            &ctx,
+                            create_tutor_embedding::WorkerArgs {
+                                tutor: Some(model.clone()),
                                 prompt: document.into(),
                             })
                             .await?;
@@ -140,39 +150,66 @@ async fn register(
             },
             UserRole::Customer(c) => {
                 let customer_params = CustomerParams {
-                    customer_type: c,
+                    customer_type: *c,
                     user_id: user.id.clone(),
                     name: Some(user.name.clone()),
                 };
 
+                let params = params.clone();
                 let customer = customers::Model::create(&ctx.db, &customer_params).await?;
 
                 match c {
                     CustomerType::StudentLearner => {
                         let cp = students::CreateParams {
-                            first_name: params.first_name.unwrap_or_default(),
-                            last_name: params.last_name.unwrap_or_default(),
-                            country: params.country.unwrap_or_default(),
+                            first_name: params.first_name.clone().unwrap_or_default(),
+                            last_name: params.last_name.clone().unwrap_or_default(),
+                            country: params.country.clone().unwrap_or_default(),
                             currency: params.currency,
                             dob: params.dob,
                             timezone: params.timezone,
                             customer_id: customer.id,
                             ..Default::default()
                         };
-                        students::Model::create(&ctx.db, &cp).await?;
+                        let student = students::Model::create(&ctx.db, &cp).await?;
+                        create_stripe_customer::Worker::perform_later(
+                            &ctx,
+                            create_stripe_customer::WorkerArgs {
+                                row_id: Some(customer.id),
+                                customer: Some(
+                                    customers::Customer::Student(customers::StripeCustomer {
+                                        email: params.email,
+                                        name: format!("{} {}", params.first_name.unwrap_or_default(), params.last_name.unwrap_or_default()),
+                                    }),
+                                ),
+                            },
+                        )
+                        .await?;
                     },
                     CustomerType::ParentGuardian => {
                         let cp = parents::CreateParams {
-                            first_name: params.first_name.unwrap_or_default(),
-                            last_name: params.last_name.unwrap_or_default(),
-                            country: params.country.unwrap_or_default(),
+                            first_name: params.first_name.clone().unwrap_or_default(),
+                            last_name: params.last_name.clone().unwrap_or_default(),
+                            country: params.country.clone().unwrap_or_default(),
                             currency: params.currency,
                             dob: params.dob,
                             timezone: params.timezone,
                             customer_id: customer.id,
                             ..Default::default()
                         };
-                        parents::Model::create(&ctx.db, &cp).await?;
+                        let parent = parents::Model::create(&ctx.db, &cp).await?;
+                        create_stripe_customer::Worker::perform_later(
+                            &ctx,
+                            create_stripe_customer::WorkerArgs {
+                                row_id: Some(customer.id),
+                                customer: Some(
+                                    customers::Customer::Parent(customers::StripeCustomer {
+                                        email: params.email,
+                                        name: format!("{} {}", params.first_name.unwrap_or_default(), params.last_name.unwrap_or_default()),
+                                    }),
+                                ),
+                            },
+                        )
+                        .await?;
                     },
                     _ => {},
                 }
