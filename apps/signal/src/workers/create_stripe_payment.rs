@@ -1,8 +1,5 @@
-use fastembed::{InitOptions, TextEmbedding};
 use serde::{Deserialize, Serialize};
 use loco_rs::prelude::*;
-
-use crate::models::tutors::{self, SearchParams};
 
 pub struct Worker {
     pub ctx: AppContext,
@@ -10,8 +7,6 @@ pub struct Worker {
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct WorkerArgs {
-    pub prompt: String,
-    pub search_params: SearchParams,
 }
 
 #[async_trait]
@@ -31,7 +26,7 @@ impl BackgroundWorker<WorkerArgs> for Worker {
     /// This name is used when enqueueing jobs and identifying the worker in logs.
     /// The implementation returns the struct name as a string.
     fn class_name() -> String {
-        "SemanticSearch".to_string()
+        "CreateStripePayment".to_string()
     }
 
     /// Returns tags associated with this worker.
@@ -49,22 +44,9 @@ impl BackgroundWorker<WorkerArgs> for Worker {
     /// 
     /// # Returns
     /// * `Result<()>` - Ok if the job completed successfully, Err otherwise
-    async fn perform(&self, args: WorkerArgs) -> Result<()> {
-        println!("=================SemanticSearch=======================");
-        /* let mut model = TextEmbedding::try_new(
-            InitOptions::new(fastembed::EmbeddingModel::AllMiniLML12V2),
-        ).unwrap(); */
-        let mut model = TextEmbedding::try_new(Default::default()).expect("could not initialize model");
-
-        let documents = vec![
-            args.prompt,
-        ];
-
-        let embeddings = model.embed(documents, None).unwrap();
-        let first = &embeddings[0];
-
-        // let results = tutors::Model::find_all(&self.ctx.db, &args.search_params).await?;
-
+    async fn perform(&self, _args: WorkerArgs) -> Result<()> {
+        println!("=================CreateStripePayment=======================");
+        // TODO: Some actual work goes here...
         Ok(())
     }
 }
