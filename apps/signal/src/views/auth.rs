@@ -1,6 +1,8 @@
+use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-use crate::models::_entities::users;
+use crate::models::{_entities::sea_orm_active_enums, users};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LoginResponse {
@@ -27,6 +29,12 @@ pub struct CurrentResponse {
     pub pid: String,
     pub name: String,
     pub email: String,
+    pub cal_user_id: Option<i32>,
+    pub role: sea_orm_active_enums::UserRole,
+    pub phone: Option<String>,
+    pub phone_verified_at: Option<DateTimeWithTimeZone>,
+    pub email_verified_at: Option<DateTimeWithTimeZone>,
+    pub profile: Option<Value>,
 }
 
 impl CurrentResponse {
@@ -36,6 +44,12 @@ impl CurrentResponse {
             pid: user.pid.to_string(),
             name: user.name.clone(),
             email: user.email.clone(),
+            cal_user_id: user.cal_user_id,
+            role: user.role,
+            phone: user.phone.clone(),
+            phone_verified_at: user.phone_verified_at.clone(),
+            email_verified_at: user.email_verified_at.clone(),
+            profile: None,
         }
     }
 }
