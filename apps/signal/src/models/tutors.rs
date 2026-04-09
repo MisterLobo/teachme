@@ -205,6 +205,9 @@ impl ActiveModelBehavior for ActiveModel {
 
 // implement your read-oriented logic here
 impl Model {
+    pub fn name(&self) -> String {
+        format!("{} {}", &self.first_name, &self.last_name)
+    }
     pub async fn create_tutor(
         db: &DatabaseConnection,
         params: &CreateParams,

@@ -19,15 +19,18 @@ pub struct CustomerParams {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Customer {
-    Student(StripeCustomer),
-    Parent(StripeCustomer),
+    Student(StripeCustomerParams),
+    Parent(StripeCustomerParams),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct StripeCustomer {
+pub struct StripeCustomerParams {
     pub email: String,
     pub name: String,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ApiResponseModel {}
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {

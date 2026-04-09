@@ -25,6 +25,12 @@ pub enum UserRole {
     Customer(CustomerType),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RoleWithId {
+    Tenant(Uuid),
+    Customer(Uuid),
+}
+
 #[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
 #[sea_orm(entity = "users::Entity")]
 #[sea_orm(table_name = "users")]

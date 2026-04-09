@@ -16,7 +16,7 @@ pub struct Model {
     pub stripe_price_id: Option<String>,
     pub stripe_customer_id: Option<String>,
     pub stripe_subscription_id: Option<String>,
-    pub period_start: DateTimeWithTimeZone,
+    pub period_start: Option<DateTimeWithTimeZone>,
     pub period_end: Option<DateTimeWithTimeZone>,
     pub next_billing_at: Option<DateTimeWithTimeZone>,
     pub trial_active: Option<bool>,

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "tenants")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -16,6 +17,16 @@ pub struct Model {
     #[serde(rename = "tenantType")]
     pub tenant_type: TenantType,
     pub name: String,
+    #[serde(rename = "referenceId")]
+    pub reference_id: Uuid,
+    pub plan: Option<String>,
+    #[serde(rename = "stripeCustomerId")]
+    pub stripe_customer_id: Option<String>,
+    #[serde(rename = "stripeSubscriptionId")]
+    pub stripe_subscription_id: Option<String>,
+    pub status: String,
+    #[serde(rename = "trialEndsAt")]
+    pub trial_ends_at: Option<DateTimeWithTimeZone>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
