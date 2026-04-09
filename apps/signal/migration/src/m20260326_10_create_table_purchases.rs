@@ -1,5 +1,5 @@
 use loco_rs::schema::{ColType, create_table};
-use sea_orm_migration::{prelude::*, schema::*};
+use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;

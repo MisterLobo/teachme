@@ -20,9 +20,13 @@ impl MigrationTrait for Migration {
                 ("session_link", ColType::StringNull),
                 ("session_length_secs", ColType::IntegerNull),
                 ("tenant_id", ColType::Uuid),
+                ("secret", ColType::String),
             ],
             &[
+                ("tutors", "tutor_id"),
+                ("students", "student_id"),
                 ("appointments", "appointment_id"),
+                ("tenants", "tenant_id"),
             ],
         ).await
     }

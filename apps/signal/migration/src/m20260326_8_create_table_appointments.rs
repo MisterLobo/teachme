@@ -24,10 +24,12 @@ impl MigrationTrait for Migration {
                     "appointment_status".into(),
                     vec![
                         "pending".into(),
+                        "confirmed".into(),
                         "ongoing".into(),
                         "cancelled".into(),
                         "completed".into(),
-                        "noshow".into(),
+                        "noshow-host".into(),
+                        "noshow-attendee".into(),
                     ],
                     "pending".into(),
                 )),

@@ -38,6 +38,7 @@ impl MigrationTrait for Migration {
                 ("session_duration", ColType::IntegerWithDefault(30)),
                 ("session_price", ColType::DecimalNull),
                 ("cal_metadata", ColType::JsonBinaryNull),
+                ("average_rating", ColType::FloatNull),
             ],
             &[
                 ("tenants", "tenant_id"),
