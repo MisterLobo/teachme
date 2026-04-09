@@ -18,6 +18,9 @@ mod m20260328_200138_create_tutor_embeddings_table;
 mod m20260328_200646_tutor_reviews;
 mod m20260328_200903_tutor_boosts;
 mod init;
+mod m20260409_103416_credits;
+mod m20260409_125329_credit_usages;
+mod m20260409_130711_subscriptions;
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -42,6 +45,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260328_200138_create_tutor_embeddings_table::Migration),
             Box::new(m20260328_200646_tutor_reviews::Migration),
             Box::new(m20260328_200903_tutor_boosts::Migration),
+            Box::new(m20260409_103416_credits::Migration),
+            Box::new(m20260409_125329_credit_usages::Migration),
+            Box::new(m20260409_130711_subscriptions::Migration),
             // inject-above (do not remove this comment)
         ]
     }

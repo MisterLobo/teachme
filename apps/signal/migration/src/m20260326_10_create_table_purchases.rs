@@ -15,10 +15,14 @@ impl MigrationTrait for Migration {
                 ("unit_amount", ColType::DecimalNull),
                 ("qty", ColType::IntegerNull),
                 ("total", ColType::DecimalNull),
+                ("service_fee", ColType::DecimalNull),
                 ("transaction_id", ColType::UuidNull),
                 ("tenant_id", ColType::Uuid),
             ],
-            &[],
+            &[
+                ("transactions", "transaction_id"),
+                ("tenants", "tenant_id"),
+            ],
         ).await
     }
 

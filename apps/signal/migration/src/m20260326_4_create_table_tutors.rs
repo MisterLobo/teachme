@@ -39,6 +39,7 @@ impl MigrationTrait for Migration {
                 ("session_price", ColType::DecimalNull),
                 ("cal_metadata", ColType::JsonBinaryNull),
                 ("average_rating", ColType::FloatNull),
+                ("max_session_price", ColType::DecimalNull),
             ],
             &[
                 ("tenants", "tenant_id"),
