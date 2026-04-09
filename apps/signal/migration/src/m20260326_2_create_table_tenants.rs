@@ -16,6 +16,11 @@ impl MigrationTrait for Migration {
                 ("owner_id", ColType::Uuid),
                 ("tenant_type", ColType::Enum("tenant_type".into(), vec!["individual".into(), "organization".into()])),
                 ("name", ColType::String),
+                ("plan", ColType::StringNull),
+                ("stripe_customer_id", ColType::StringNull),
+                ("stripe_subscription_id", ColType::StringNull),
+                ("status", ColType::String),
+                ("trial_ends_at", ColType::TimestampWithTimeZoneNull),
             ],
             &[
                 ("users", "owner_id"),
