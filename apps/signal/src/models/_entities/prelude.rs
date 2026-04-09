@@ -15,3 +15,6 @@ pub use super::tutor_reviews::Entity as TutorReviews;
 pub use super::tutorial_sessions::Entity as TutorialSessions;
 pub use super::tutors::Entity as Tutors;
 pub use super::users::Entity as Users;
+pub use super::credit_usages::Entity as CreditUsages;
+pub use super::credits::Entity as Credits;
+pub use super::subscriptions::Entity as Subscriptions;
