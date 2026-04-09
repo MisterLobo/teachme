@@ -6,6 +6,7 @@ pub use super::_entities::organizations::{ActiveModel, Column, Model, Entity};
 pub type Organizations = Entity;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateParams {
     pub name: String,
     #[serde(rename = "contactEmail")]

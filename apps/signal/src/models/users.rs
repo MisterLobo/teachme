@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{offset::Local, Duration};
 use loco_rs::{auth::jwt, hash, prelude::*};
-use sea_orm::ActiveEnum;
+use sea_orm::{ActiveEnum, DerivePartialModel, FromQueryResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use uuid::Uuid;
@@ -19,13 +19,43 @@ pub struct LoginParams {
     pub password: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum UserRole {
     Tenant(TenantType),
     Customer(CustomerType),
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[sea_orm(table_name = "users")]
+#[serde(rename_all = "camelCase")]
+pub struct SafeModel {
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: Uuid,
+    #[sea_orm(unique)]
+    pub email: String,
+    pub name: String,
+    #[serde(rename = "emailVerifiedAt")]
+    pub email_verified_at: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "resetSentAt")]
+    pub reset_sent_at: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "emailVerficationToken")]
+    pub email_verification_token: Option<String>,
+    #[serde(rename = "emailVerificationSentAt")]
+    pub email_verification_sent_at: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "magicLinkExpiration")]
+    pub magic_link_expiration: Option<DateTimeWithTimeZone>,
+    #[serde(rename = "calUserId")]
+    pub cal_user_id: Option<i32>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub cal_username: Option<String>,
+    pub phone: Option<String>,
+    #[serde(rename = "phoneVerifiedAt")]
+    pub phone_verified_at: Option<DateTimeWithTimeZone>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterParams {
     pub email: String,
     pub password: String,

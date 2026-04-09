@@ -7,6 +7,7 @@ pub use super::_entities::tenants::{ActiveModel, Model, Entity};
 pub type Tenants = Entity;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TenantParams {
     #[serde(rename = "ownerId")]
     pub owner_id: Uuid,

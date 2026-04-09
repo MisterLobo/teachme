@@ -2,18 +2,31 @@ use loco_rs::{model::{ModelError, ModelResult}, prelude::model};
 use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 
-use crate::models::_entities::{customers, sea_orm_active_enums::CustomerType};
+use crate::models::{_entities::{customers, sea_orm_active_enums::CustomerType}};
 
 pub use super::_entities::customers::{ActiveModel, Model, Entity};
 pub type Customers = Entity;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomerParams {
     #[serde(rename = "userId")]
     pub user_id: Uuid,
     #[serde(rename = "customerType")]
     pub customer_type: CustomerType,
     pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Customer {
+    Student(StripeCustomer),
+    Parent(StripeCustomer),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StripeCustomer {
+    pub email: String,
+    pub name: String,
 }
 
 #[async_trait::async_trait]

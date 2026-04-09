@@ -11,6 +11,7 @@ pub use super::_entities::appointments::{ActiveModel, Model, Entity};
 pub type Appointments = Entity;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateParams {
     #[serde(rename = "hostId")]
     pub host_id: Uuid,
@@ -22,6 +23,7 @@ pub struct CreateParams {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppointmentData {
     id: Uuid,
     #[serde(rename = "startAt")]

@@ -37,6 +37,7 @@ pub struct GetTutorParams {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateParams {
     #[serde(rename = "firstName")]
     pub first_name: String,
@@ -75,6 +76,7 @@ pub struct CreateParams {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateParams {
     #[serde(rename = "firstName")]
     pub first_name: Option<String>,
@@ -132,6 +134,7 @@ pub struct Calendar {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, FromJsonQueryResult)]
+#[serde(rename_all = "camelCase")]
 pub struct CalMetadataTeam {
     pub slug: String,
     #[serde(rename = "teamId")]

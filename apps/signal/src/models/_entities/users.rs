@@ -14,32 +14,44 @@ pub struct Model {
     pub pid: Uuid,
     #[sea_orm(unique)]
     pub email: String,
+    #[serde(skip_serializing)]
     pub password: String,
     #[sea_orm(column_type = "Text")]
     #[serde(rename = "apiKey")]
     pub api_key: String,
     pub name: String,
-    #[serde(rename = "emailVerifiedAt")]
+    // #[serde(rename = "emailVerifiedAt")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email_verified_at: Option<DateTimeWithTimeZone>,
     #[sea_orm(column_type = "Text", nullable)]
-    #[serde(rename = "resetToken")]
+    // #[serde(rename = "resetToken")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reset_token: Option<String>,
-    #[serde(rename = "resetSentAt")]
+    // #[serde(rename = "resetSentAt")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reset_sent_at: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "emailVerficationToken")]
+    // #[serde(rename = "emailVerficationToken")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email_verification_token: Option<String>,
-    #[serde(rename = "emailVerificationSentAt")]
+    // #[serde(rename = "emailVerificationSentAt")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email_verification_sent_at: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "magicLinkToken")]
+    // #[serde(rename = "magicLinkToken")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub magic_link_token: Option<String>,
-    #[serde(rename = "magicLinkExpiration")]
+    // #[serde(rename = "magicLinkExpiration")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub magic_link_expiration: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "calUserId")]
+    // #[serde(rename = "calUserId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cal_user_id: Option<i32>,
     #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cal_username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
-    #[serde(rename = "phoneVerifiedAt")]
+    // #[serde(rename = "phoneVerifiedAt")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone_verified_at: Option<DateTimeWithTimeZone>,
     pub role: UserRole,
 }
