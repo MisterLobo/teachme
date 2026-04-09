@@ -6,23 +6,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "appointments")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[serde(rename = "tenantId")]
     pub tenant_id: Uuid,
-    #[serde(rename = "hostId")]
     pub host_id: Uuid,
-    #[serde(rename = "attendeeId")]
     pub attendee_id: Uuid,
-    #[serde(rename = "startAt")]
     pub start_at: DateTimeWithTimeZone,
-    #[serde(rename = "endAt")]
     pub end_at: DateTimeWithTimeZone,
     pub duration: i32,
-    #[serde(rename = "calBookingId")]
     pub cal_booking_id: Option<i32>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub cal_metadata: Option<Json>,

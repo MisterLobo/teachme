@@ -5,20 +5,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "parents")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[serde(rename = "firstName")]
     pub first_name: String,
-    #[serde(rename = "lastName")]
     pub last_name: String,
     pub dob: Option<Date>,
     pub sex: Option<String>,
-    #[serde(rename = "numChild")]
     pub num_child: Option<i32>,
-    #[serde(rename = "customerId")]
     pub customer_id: Option<Uuid>,
     pub country: Option<String>,
     pub currency: Option<String>,

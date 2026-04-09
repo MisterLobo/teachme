@@ -3,8 +3,11 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::models::subscriptions::UnlockedFeatures;
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "subscriptions")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -24,7 +27,7 @@ pub struct Model {
     pub trial_ends_at: Option<DateTimeWithTimeZone>,
     pub trial_duration: Option<i32>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
-    pub unlocked_features: Option<Json>,
+    pub unlocked_features: Option<UnlockedFeatures>,
     pub status: Option<String>,
 }
 

@@ -5,27 +5,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "transactions")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[serde(rename = "initiatedAt")]
     pub initiated_at: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "completedAt")]
     pub completed_at: Option<DateTimeWithTimeZone>,
     pub status: Option<String>,
-    #[serde(rename = "appointmentId")]
     pub appointment_id: Option<Uuid>,
     pub purpose: Option<String>,
-    #[serde(rename = "stripePaymentId")]
     pub stripe_payment_intent_id: Option<String>,
-    #[serde(rename = "stripeInvoiceId")]
     pub stripe_invoice_id: Option<String>,
-    #[serde(rename = "tenantId")]
     pub tenant_id: Option<Uuid>,
     pub biller: Option<Uuid>,
-    #[serde(rename = "billedTo")]
     pub billed_to: Option<Uuid>,
 }
 

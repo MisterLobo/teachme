@@ -5,18 +5,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "tutor_boosts")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[serde(rename = "tutorId")]
     pub tutor_id: Uuid,
-    #[serde(rename = "boostStart")]
     pub boost_start: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "boostEnd")]
     pub boost_end: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "boostDuration")]
     pub boost_duration: Option<i32>,
 }
 

@@ -12,19 +12,13 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[serde(rename = "userId")]
     pub user_id: Option<Uuid>,
-    #[serde(rename = "customerType")]
     pub customer_type: CustomerType,
-    #[serde(rename = "referenceId")]
     pub reference_id: Uuid,
     pub plan: Option<String>,
-    #[serde(rename = "stripeCustomerId")]
     pub stripe_customer_id: Option<String>,
-    #[serde(rename = "stripeSubscriptionId")]
     pub stripe_subscription_id: Option<String>,
     pub status: String,
-    #[serde(rename = "trialEndsAt")]
     pub trial_ends_at: Option<DateTimeWithTimeZone>,
 }
 

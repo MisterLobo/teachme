@@ -11,52 +11,59 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[serde(rename = "firstName")]
     pub first_name: String,
-    #[serde(rename = "lastName")]
     pub last_name: String,
     pub country: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timezone: Option<String>,
     pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    #[serde(rename = "organizationId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dob: Option<Date>,
-    #[serde(rename = "primaryLanguage")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub primary_language: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
-    #[serde(rename = "otherLanguages")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub other_languages: Option<Json>,
     #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub languages: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bio: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub categories: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subjects: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
-    #[serde(rename = "availabilitySchedules")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub availability_schedules: Option<Json>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub event_types: Option<Json>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
-    #[serde(rename = "stripeConnectId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stripe_connect_id: Option<String>,
     pub status: String,
-    #[serde(rename = "defaultCalendar")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_calendar: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub calendars: Option<Json>,
-    #[serde(rename = "tenantId")]
     pub tenant_id: Uuid,
-    #[serde(rename = "sessionDuration")]
     pub session_duration: i32,
-    #[serde(rename = "sessionPrice")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_price: Option<Decimal>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
-    #[serde(rename = "calMetadata")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cal_metadata: Option<Json>,
 }
 

@@ -1,5 +1,5 @@
 use loco_rs::model::ModelResult;
-use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, FromJsonQueryResult, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 pub use super::_entities::subscriptions::{ActiveModel, Model, Entity};
 pub type Subscriptions = Entity;
@@ -19,7 +19,7 @@ pub enum SubscriptionPlan {
     Premium,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, FromJsonQueryResult, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UnlockedFeatures {
     full: bool,
@@ -156,7 +156,7 @@ impl Model {
             id: ActiveValue::Set(params.subscriber_id.clone()),
             tenant_id: ActiveValue::Set(params.tenant_id.clone()),
             plan: ActiveValue::Set(params.stripe_metadata.plan.clone()),
-            unlocked_features: ActiveValue::Set(Some(serde_json::json!(params.features))),
+            unlocked_features: ActiveValue::Set(Some(params.features.clone())),
             stripe_customer_id: ActiveValue::Set(params.stripe_metadata.customer_id.clone()),
             stripe_subscription_id: ActiveValue::Set(params.stripe_metadata.subscription_id.clone()),
             stripe_price_id: ActiveValue::Set(params.stripe_metadata.price_id.clone()),
@@ -171,7 +171,7 @@ impl Model {
             next_billing_at: ActiveValue::Set(params.next_billing_at.clone()),
             ..Default::default()
         }
-        .insert(db)
+        .insert(&txn)
         .await?;
 
         txn.commit().await?;
