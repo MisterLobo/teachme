@@ -11,6 +11,7 @@ impl MigrationTrait for Migration {
             &[
                 ("id", ColType::PkUuid),
                 ("plan", ColType::StringNull),
+                ("tenant_id", ColType::UuidNull),
                 ("stripe_product_id", ColType::StringNull),
                 ("stripe_price_id", ColType::StringNull),
                 ("stripe_customer_id", ColType::StringNull),
