@@ -11,3 +11,8 @@ mod transactions;
 mod purchases;
 mod parents;
 mod search_prompts;
+mod tutor_embeddings;
+mod tutor_reviews;
+mod tutor_boosts;
+mod somethings;
+mod abcs;
