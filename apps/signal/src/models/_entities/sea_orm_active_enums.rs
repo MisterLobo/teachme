@@ -18,6 +18,18 @@ pub enum AppointmentStatus {
     Noshow,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "credit_status")]
+pub enum CreditStatus {
+    #[sea_orm(string_value = "success")]
+    Success,
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "cancelled")]
+    Cancelled,
+    #[sea_orm(string_value = "refunded")]
+    Refunded,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "customer_type")]
 pub enum CustomerType {
     #[sea_orm(string_value = "student_learner")]
