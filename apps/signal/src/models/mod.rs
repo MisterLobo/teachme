@@ -14,3 +14,6 @@ pub mod search_prompts;
 pub mod tutor_embeddings;
 pub mod tutor_boosts;
 pub mod tutor_reviews;
+pub mod credit_usages;
+pub mod credits;
+pub mod subscriptions;

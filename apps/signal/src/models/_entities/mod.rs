@@ -18,3 +18,6 @@ pub mod tutor_reviews;
 pub mod tutorial_sessions;
 pub mod tutors;
 pub mod users;
+pub mod credit_usages;
+pub mod credits;
+pub mod subscriptions;
