@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package v1.account;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "v1/account";
+
+/*
+ * AccountService
+ */
+service AccountService {
+  /*
+  * Setup
+  */
+  rpc Setup (AccountSetup) returns (AccountSetupResponse);
+
+  /*
+  * Verify
+  */
+  rpc Verify (AccountVerify) returns (AccountVerifyResponse);
+}
+
+/*
+ * AccountSetup
+ */
+message AccountSetup {}
+
+/*
+ * AccountSetupResponse
+ */
+message AccountSetupResponse {
+  string status = 1;
+  optional string setup_link = 2;
+  optional string success_link = 3;
+  optional string refresh_link = 4;
+}
+
+/*
+ * AccountVerify
+ */
+message AccountVerify {}
+
+/*
+ * AccountVerifyResponse
+ */
+message AccountVerifyResponse {
+  string status = 1;
+  optional string verify_link = 2;
+  optional string success_link = 3;
+  optional string refresh_link = 4;
+}

@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package v1.tutor;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+import "apps/dbal/proto/v1/profile/profile.proto";
+
+option go_package = "v1/tutor";
+
+/*
+ * TutorService
+ */
+service TutorService {
+  /*
+   * Get tutor by ID
+   */
+  rpc GetById (TutorGetById) returns (TutorResponse);
+  /*
+  * List
+  */
+  rpc List (TutorList) returns (TutorResponse);
+  /*
+  * Search
+  */
+  rpc Search (TutorSearch) returns (TutorResponse);
+  /*
+  * GetAvailableSlots
+  */
+  rpc GetAvailableSlots (TutorGetAvailableSlots) returns (TutorResponse);
+}
+
+/*
+ * TutorGetById params
+ */
+message TutorGetById {
+  string id = 1;
+  optional bool with_availability = 2;
+  optional bool with_ratings = 3;
+}
+
+/*
+ * TutorList params
+ */
+message TutorList {
+  repeated string ids = 1;
+  repeated string status = 2;
+}
+
+/*
+ * TutorSearch params
+ */
+message TutorSearch {
+  string query = 1;
+  string tz = 2;
+  optional string user_id = 3;
+  optional string pid = 4;
+}
+
+/*
+ * TutorSearchResponse
+ */
+message TutorSearchResponse {
+  string category = 1;
+  string subject = 2;
+  float confidence = 3;
+  string currency = 4;
+  string timezone = 5;
+  uint32 session_duration = 6;
+  float session_price = 7;
+  string start_time = 8;
+  optional string locale = 9;
+  optional string topic = 10;
+  repeated float embedding = 11;
+}
+
+/*
+ * TutorGetAvailableSlots
+ */
+message TutorGetAvailableSlots {
+  string query = 1;
+  string tz = 2;
+  optional string user_id = 3;
+  optional string pid = 4;
+}
+
+message TutorDateTimeSlots {
+  string id = 1;
+  optional v1.profile.TutorProfile profile = 2;
+  repeated TutorGetAvailableSlotsResponseSlots slots = 3;
+}
+
+message TutorAvailableSlotsResponse {
+  repeated TutorDateTimeSlots slots = 1;
+}
+
+/*
+ * TutorGetAvailableSlotsResponseTimeSlot
+ */
+message TutorGetAvailableSlotsResponseSlots {
+  string date_slot = 1;
+  repeated TutorGetAvailableSlotsResponseTimeSlot time_slots = 2;
+}
+
+/*
+ * TutorGetAvailableSlotsResponseTimeSlot
+ */
+message TutorGetAvailableSlotsResponseTimeSlot {
+  string start = 1;
+}
+
+/*
+ * TutorResponse
+ */
+message TutorResponse {
+  string status = 1;
+  oneof data {
+    TutorSearchResponse inner = 2;
+    TutorAvailableSlotsResponse outer = 3;
+  }
+}
+
+/*
+ * TutorGetEmbedding
+ */
+message TutorGetEmbedding {
+  string id = 1;
+}
+
+/*
+ * TutorGetEmbeddingResponse
+ */
+message TutorGetEmbeddingResponse {
+  repeated float embedding = 1;
+}

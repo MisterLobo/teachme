@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package v1.booking;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "v1/booking";
+
+/*
+ * Booking Service
+ */
+service BookingService {
+  /*
+   * Book an appointment
+   */
+  rpc Create (BookingCreate) returns (BookingResponse);
+  /*
+   * List
+   */
+  rpc List (BookingList) returns (BookingResponse);
+}
+
+/*
+ * BookingAppointment
+ */
+message BookingCreate {
+  string date_time = 1;
+  int32 duration = 2;
+  string host_id = 3;
+}
+
+message BookingCreateResponse {
+  optional string payment_link = 1;
+  optional string payment_intent = 2;
+  optional string client_secret = 3;
+  optional string booking_id = 4;
+}
+
+/*
+ * BookingResponse
+ */
+message BookingResponse {
+  string status = 1;
+  int32 status_code = 2;
+  optional string error = 3;
+  oneof data {
+    BookingCreateResponse created = 4;
+    BookingListResponse listed = 5;
+  }
+}
+
+/*
+ * BookingList
+ */
+message BookingList {
+  optional string start_date = 1;
+  optional string end_date = 2;
+  optional int32 duration = 3;
+}
+
+message BookingListResponse {
+  optional google.protobuf.Any items = 1;
+}

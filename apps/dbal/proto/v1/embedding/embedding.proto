@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package v1.embedding;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "v1/embedding";
+
+/*
+ * EmbeddingService
+ */
+service EmbeddingService {
+  /*
+  * Create
+  */
+  rpc Create (EmbeddingCreate) returns (EmbeddingCreateResponse);
+}
+
+/*
+ * CreateEmbedding params
+ */
+message EmbeddingCreate {
+  string documents = 1;
+}
+
+/*
+ * CreateEmbeddingResponse
+ */
+message EmbeddingCreateResponse {
+  repeated float embedding = 1;
+}

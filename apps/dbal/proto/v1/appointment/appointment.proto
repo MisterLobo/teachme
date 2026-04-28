@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package v1.appointment;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "v1/appointment";
+
+/*
+ * Booking Service
+ */
+service AppointmentService {
+  /*
+   * Retrieve an appointment
+   */
+  rpc Retrieve (AppointmentRetrieve) returns (AppointmentResponse);
+  /*
+   * List appointments
+   */
+  rpc List (AppointmentList) returns (AppointmentResponse);
+}
+
+/*
+ * AppointmentRetrieve
+ */
+message AppointmentRetrieve {
+  string id = 1;
+}
+
+message AppointmentRetrieveResponse {
+  string id = 1;
+  string host_id = 2;
+  string attendee_id = 3;
+  string date_time = 4;
+  int32 duration = 5;
+  string title = 6;
+  optional string description = 7;
+}
+
+/*
+ * AppointmentList
+ */
+message AppointmentList {
+  optional string start_date = 1;
+  optional string end_date = 2;
+  optional int32 duration = 3;
+}
+
+message AppointmentListResponse {
+  repeated AppointmentListEntry items = 1;
+}
+
+message AppointmentListEntry {
+  string id = 1;
+  string host_id = 2;
+  string attendee_id = 3;
+  string date_time = 4;
+  string status = 5;
+}
+
+/*
+ * AppointmentResponse
+ */
+message AppointmentResponse {
+  string status = 1;
+  int32 status_code = 2;
+  oneof data {
+    AppointmentList list = 3;
+    AppointmentRetrieveResponse one = 4;
+  }
+  optional string error = 5;
+}

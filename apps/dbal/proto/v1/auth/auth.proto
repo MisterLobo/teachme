@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package v1.auth;
+
+import "google/protobuf/timestamp.proto";
+// import "validate.proto";
+
+option go_package = "v1/auth";
+
+/*
+ * Auth Service
+ */
+service AuthService {
+  /*
+  * Login
+  */
+  rpc Login (AuthLogin) returns (LoginResponse);
+  /*
+  * Signup
+  */
+  rpc Signup (AuthSignup) returns (SignupResponse);
+}
+
+/*
+ * AuthLogin
+ */
+message AuthLogin {
+  string email = 1;
+  string password = 2;
+}
+
+/*
+ * AuthSignup
+ */
+message AuthSignup {
+  string email = 1; // [(validate.rules).string.email = true];
+  string password = 2; // [(validate.rules).string.min_len = 12];
+  string username = 3; // [(validate.rules).string.min_len = 8];
+  int32 role = 4;
+  optional string country = 5;
+  optional string currency = 6;
+  optional string timezone = 7;
+  optional string title = 8;
+  optional string categories = 9;
+  optional string subjects = 10;
+  optional string primary_language = 11;
+  optional string locale = 12;
+  optional string plan = 13;
+  optional bool is_trial = 14;
+  optional string first_name = 15;
+  optional string last_name = 16;
+  optional int32 session_duration = 17;
+  optional float session_price = 18;
+}
+
+/*
+ * LoginResponse
+ */
+message LoginResponse {
+  string status = 1;
+  int32 status_code = 2;
+  optional string access_token = 3;
+  optional string refresh_token = 4;
+  optional string error = 5;
+}
+
+/*
+ * SignupResponse
+ */
+message SignupResponse {
+  string status = 1;
+  int32 status_code = 2;
+  optional string error = 3;
+}

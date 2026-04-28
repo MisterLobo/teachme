@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package v1.payment;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "v1/payment";
+
+/*
+ * PaymentService
+ */
+service PaymentService {
+  /*
+  * Setup
+  */
+  rpc Setup (PaymentSetup) returns (PaymentSetupResponse);
+
+  /*
+  * Process
+  */
+  rpc Process (PaymentProcess) returns (PaymentProcessResponse);
+}
+
+/*
+ * PaymentSetup
+ */
+message PaymentSetup {
+  string recipient_id = 1;
+  optional string sender_id = 2;
+}
+
+/*
+ * PaymentSetupResponse
+ */
+message PaymentSetupResponse {
+  string setup_intent_id = 1;
+  optional string client_secret = 2;
+}
+
+/*
+ * PaymentProcess
+ */
+message PaymentProcess {
+  string payment_intent_id = 1;
+}
+
+/*
+ * PaymentProcessResponse
+ */
+message PaymentProcessResponse {
+  string payment_intent_id = 1;
+}
