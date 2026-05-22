@@ -5,5 +5,20 @@
   "projectType": "application",
   "tags": [],
   "// targets": "to see all targets run: nx show project web --web",
-  "targets": {}
+  "targets": {
+    "dev:tls": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/web",
+        "command": "next dev --turbopack --experimental-https"
+      }
+    },
+    "start:tls": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/web",
+        "command": "next start --port 3005 --experimental-https"
+      }
+    }
+  }
 }
