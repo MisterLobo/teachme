@@ -11,6 +11,13 @@
     }
   ],
   "compilerOptions": {
-    "esModuleInterop": true
-  }
+    "esModuleInterop": true,
+    "rootDir": "src/"
+  },
+  "exclude": [
+    "./src/@generated/*.ts",
+    "./src/dal",
+    "./generated",
+    "./node_modules"
+  ]
 }

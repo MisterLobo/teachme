@@ -2,20 +2,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "module": "commonjs",
+    "module": "node16",
     "types": ["node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "target": "es2024",
-    "moduleResolution": "node",
-    "rootDirs": ["src/*", "src/app/*"],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "moduleResolution": "node16"
   },
   "include": ["src/**/*.ts"],
   "exclude": [
-    "node_modules",
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.spec.ts",
