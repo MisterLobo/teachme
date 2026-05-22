@@ -1,10 +1,15 @@
 networks:
   local-kafka:
     driver: bridge
+  monitoring:
+    driver: bridge
+  mongodb:
+    driver: bridge
 
 services:
   postgres:
     image: pgvector/pgvector:pg18-trixie
+    #image: ruvnet/ruvector-postgres:latest
     restart: always
     #command: postgres -c config_file=/etc/postgresql/postgresql.conf
     environment:
@@ -32,6 +37,55 @@ services:
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
     depends_on:
       - postgres
+
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: "6334"
+    volumes:
+      - ./docker/config/qdrant.yaml:/qdrant/config/config.yaml
+      - ./docker/certs/new:/certs
+
+  nats:
+    image: nats:latest
+    container_name: nats-jetstream
+    ports:
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+      - "10443:10443" # ws
+    command: ["-js", "-c", "/nats/config/nats.conf"] # Enables JetStream
+    volumes:
+      - nats-data:/tmp/nats
+      - ./docker/nats:/nats
+      - ./docker/nats/certs/new:/nats/certs
+      #- ./docker/nats/certs/new/localhost.san.pem:/nats/certs/localhost.pem
+      #- ./docker/nats/certs/new/san-key.pem:/nats/certs/key.pem
+      #- ./docker/nats/certs/new/ca.pem:/nats/certs/ca.pem
+      #- ./docker/nats/certificates:/nats/certs/web
+
+  nats-ui:
+    image: ghcr.io/nats-nui/nui:latest
+    container_name: nats-ui
+    ports:
+      - "31311:31311"
+    environment:
+      - NATS_URL=wss://nats:10443
+      - NATS_CA=/nats/certs/ca.pem
+      - NATS_CERT_FILE=/nats/certs/localhost.san.pem
+      - NATS_KEY_FILE=/nats/certs/san-key.pem
+      #- NATS_USERNAME=natsuser
+      #- NATS_PASSWORD=natspassword
+      - NATS_TOKEN=super-secret-token
+    depends_on:
+      - nats
+    volumes:
+      - nui-data:/db
+      - nui-data:/creds:ro
+      - ./docker/nats/certs/new:/nats/certs
+      #- ./docker/nats/certs:/nats/certs
 
   maildev:
     image: maildev/maildev
@@ -64,6 +118,14 @@ services:
       - "1995:995"
     volumes:
       - stalwart-data:/opt/stalwart
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    volumes:
+      - mailhog-data:/opt/mailhog
 
   #kiss-mail:
   #  image: ghcr.io/pegasusheavy/kiss-mail
@@ -126,14 +188,196 @@ services:
       - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
 
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack:latest #redis:7-alpine
     container_name: redis7
     restart: unless-stopped
     ports:
       - "6399:6379"
-    command: redis-server --save 20 1 --loglevel warning --requirepass yourstrongpassword
+      - "8011:8001"
+    command: redis-server --loadmodule /opt/redis-stack/lib/rejson.so --loglevel warning --requirepass yourstrongpassword --tls-port 6379 --port 0 --tls-cert-file /certs/localhost.pem --tls-key-file /certs/key.pem --tls-ca-cert-file /certs/ca.pem --tls-auth-clients yes
     volumes:
       - redis-data:/data
+      - ./docker/redis/certs/new/localhost.san.pem:/certs/localhost.pem
+      - ./docker/redis/certs/new/san-key.pem:/certs/key.pem
+      - ./docker/redis/certs/new/ca.pem:/certs/ca.pem
+
+  asynqmon:
+    image: hibiken/asynqmon
+    ports:
+      - "8008:8080"
+    depends_on:
+      - redis
+    command: ["--redis-url", "rediss://yourstrongpassword@redis:6399"]
+
+  neo4j:
+    image: neo4j:latest  # Or a specific version like neo4j:5.12.0
+    container_name: neo4j_container
+    ports:
+      - "7473:7473" # HTTPS
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt (Direct Driver Connection)
+    volumes:
+      - neo4j-data:/data
+      - ./docker/neo4j/logs:/logs
+      - neo4j-data:/var/lib/neo4j/import
+      - neo4j-data:/plugins
+      - ./docker/config/neo4j/certs:/neo4j-data/certs
+      #- ./docker/neo4j/certificates:/certificates
+      #- ./docker/config/neo4j/certs/ca-chain.pem:/neo4j-data/certs/bolt-ca.pem
+      #- ./docker/neo4j/certs/localhost.pem:/certs/bolt-server.pem
+      #- ./docker/neo4j/certs/key.pem:/certs/bolt-key.pem
+      #- ./docker/neo4j/certificates/rootCA.pem:/certificates/client-ca.pem
+      #- ./docker/neo4j/certificates/localhost.pem:/certificates/client-cert.pem
+      #- ./docker/neo4j/certificates/localhost-key.pem:/certificates/client-key.pem
+      - ./docker/config/neo4j:/var/lib/neo4j/conf
+
+    environment:
+      # Sets initial password (min 8 chars)
+      - NEO4J_AUTH=neo4j/password123 
+      # Accept Enterprise License (Only if using Enterprise image)
+      # - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+
+  vault:
+    image: hashicorp/vault:1.14.1
+    container_name: vault
+    ports:
+      - "28200:8200"
+      - "28300:8300"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "root_token"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8300"
+      VAULT_UI: "true"
+      #VAULT_CACERT: ./docker/vault/certs/new/ca.pem
+    cap_add:
+      - IPC_LOCK
+    #command: "server -config=/vault/config/vault.hcl -dev -dev-root-token-id=root_token"
+    command: "server -dev -dev-root-token-id=root_token"
+    volumes:
+      - vault-certs:/certs
+      - vault-data:/vault
+      - ./docker/vault/config:/vault/config
+      - ./docker/vault/certs/new:/certs
+      #- ./docker/config/vault.hcl:/vault/config/vault.hcl
+      #- ./docker/vault/certs/rootCA.pem:/vault/config/tls/ca.pem
+      #- ./docker/vault/certs/localhost.pem:/vault/config/tls/vault.pem
+      #- ./docker/vault/certs/localhost-key.pem:/vault/config/tls/vault.key
+    #networks:
+    #  - app-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "30000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=your_secure_password
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    expose:
+      - 9090
+    networks:
+      - monitoring
+
+  otel-collector:
+    image: otel/opentelemetry-collector
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml
+    ports:
+      - 1888:1888 # pprof extension
+      - 8888:8888 # Prometheus metrics exposed by the Collector
+      - 8889:8889 # Prometheus exporter metrics
+      - 13133:13133 # health_check extension
+      - 4317:4317 # OTLP gRPC receiver
+      - 4318:4318 # OTLP http receiver
+      - 55679:55679 # zpages extension
+    networks:
+      - monitoring
+
+  mongodb:
+    #image: mongodb/mongodb-atlas-local:latest
+    image: mongo:7
+    container_name: mongodb
+    ports:
+      - "28017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      #- mongo_data:/data/db
+      - ./docker/mongodb/certs:/etc/ssl/mongo:ro
+    #command: mongod
+    command: >
+      mongod --auth
+             --tlsMode requireTLS
+             --tlsCAFile /etc/ssl/mongo/ca.pem
+             --tlsCertificateKeyFile /etc/ssl/mongo/mongo.pem
+    networks:
+      - mongodb
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: unless-stopped
+    depends_on: 
+      - mongodb
+    ports:
+      - "10081:8081"
+    environment:
+      - ME_CONFIG_SITE_SSL_ENABLED=true
+      - ME_CONFIG_SITE_SSL_CRT_PATH=/certs/localhost.san.pem
+      - ME_CONFIG_SITE_SSL_KEY_PATH=/certs/san-key.pem
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      #- ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ENABLE_TLS=true
+      - ME_CONFIG_MONGODB_TLS_CA_FILE=/certs/ca.pem
+      - ME_CONFIG_MONGODB_TLS_CERT_FILE=/certs/mongo.pem
+      - ME_CONFIG_MONGODB_TLS_ALLOW_INVALID_CERTIFICATES=true
+      #- ME_CONFIG_MONGODB_SERVER=opqdb
+      #- ./docker/mongodb/config.js:/node_modules/mongo-express/config.js:ro
+      #- ME_CONFIG_MONGODB_URL=mongodb://admin:password@mongodb:27017/opqdb?authSource=admin
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:password@mongodb:27017/opqdb?authSource=admin&tls=true&tlsAllowInvalidCertificates=true&tlsCAFile=/certs/ca.pem&tlsCertificateKeyFile=/certs/mongo.pem
+    volumes:
+      - ./docker/mongodb/certs:/certs
+    networks:
+      - mongodb
 
 volumes:
   pgdata:
@@ -143,4 +387,20 @@ volumes:
   kiss-mail-data:
     driver: local
   stalwart-data:
+    driver: local
+  mailhog-data:
+    driver: local
+  nats-data:
+    driver: local
+  neo4j-data:
+    driver: local
+  nui-data:
+    driver: local
+  grafana-storage:
+  prometheus_data:
+  neo4j-storage:
+  mongo_data:
+  vault-data:
+    driver: local
+  vault-certs:
     driver: local
