@@ -53,14 +53,15 @@ impl Initializer for RealtimeInitializer {
   }
 
   async fn after_routes(&self, router: AxumRouter, ctx: &AppContext) -> Result<AxumRouter> {
-    let cc = ctx.clone();
+    let io = ctx.shared_store.get::<RealtimeService>();
 
-    let (layer, io) = SocketIo::builder()
-      .with_state(RtState::new(ctx.clone()))
-      .build_layer();
-
-    io.ns("/rt", async move |socket: SocketRef| {
-      let sock = socket.clone();
+    let Some(io) = io else {
+      tracing::warn!("socket ref not set");
+      return Ok(router);
+    };
+    
+    let sock = io.socket;
+    sock.ns("/rt", async |socket: SocketRef| {
       let socket_id = socket.id.to_string();
       socket.extensions.insert(SocketId(socket_id));
 
@@ -98,17 +99,7 @@ impl Initializer for RealtimeInitializer {
           return;
         },
       }
-
-      cc.shared_store.insert(RealtimeService {
-        socket: sock.clone(),
-      });
     });
-    
-    let router = router.layer(
-      ServiceBuilder::new()
-        .layer(CorsLayer::very_permissive())
-        .layer(layer),
-    );
 
     Ok(router)
   }

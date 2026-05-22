@@ -1,21 +1,24 @@
-use std::{collections::HashMap, num::{NonZeroU8, NonZeroU32}, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
+use std::{collections::HashMap, env, io::{BufReader, Read}, net::SocketAddr, num::{NonZeroU8, NonZeroU32}, str::FromStr, sync::{Arc, atomic::{AtomicUsize, Ordering}}};
 use async_lock::Mutex;
 use axum::Router as AxumRouter;
 use async_trait::async_trait;
+use axum_server::tls_rustls::RustlsConfig;
+use jsonwebtoken::{Algorithm, DecodingKey};
 use loco_rs::{auth::jwt::{JWT, UserClaims}, prelude::*};
 use loco_rs::doctor::{Check, CheckStatus};
 use mediasoup::prelude::{Consumer, ConsumerId, ConsumerOptions, MimeTypeAudio, MimeTypeVideo, Producer, ProducerId, ProducerOptions, RtcpFeedback, RtpCodecCapability, RtpCodecParametersParameters, Transport, WebRtcTransportRemoteParameters, WorkerManager};
 use serde::{Deserialize, Serialize};
 use socketioxide::{
-  SocketIo,
-  extract::{Data, Extension, SocketRef, State},
+  SocketIo, SocketIoConfig, extract::{Data, Extension, SocketRef, State}
 };
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
-use crate::initializers::initialize_chat::{participant::{ParticipantConnection, ParticipantId, messages::{ClientMessage, InternalMessage, PeerMessage, RoomMessage, ServerMessage}}, room::RoomId, rooms_registry::RoomsRegistry};
+use crate::{initializers::initialize_chat::{participant::{ParticipantConnection, ParticipantId, messages::{ClientMessage, InternalMessage, PeerMessage, RoomMessage, ServerMessage}}, room::RoomId, rooms_registry::RoomsRegistry}, models::{_entities::sea_orm_active_enums::{CustomerType, TenantType}, appointments, students, tutors, users::{self, RoleWithId, UserRole, UserType}}, services::RealtimeService};
+use tonic::{metadata::MetadataValue, transport::{Certificate, Channel, ClientTlsConfig, Identity}};
+use signal_proto::v1::appointment::{AppointmentRetrieve, appointment_response, appointment_service_client::AppointmentServiceClient};
 
 #[allow(clippy::module_name_repetitions)]
 pub struct ChatInitializer;
@@ -73,8 +76,17 @@ struct ServerChannel {
   pub tx: UnboundedSender<ServerMessage>,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Deserialize, Serialize)]
+struct AppointmentId(pub Uuid);
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
-struct AppointmentId(Uuid);
+struct Pid(String);
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+struct HostId(Uuid);
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+struct AttendeeId(Uuid);
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -138,6 +150,62 @@ impl ChatRoomState {
   pub async fn remove_participant(&mut self, part_id: &ParticipantId) {
     let mut lock = self.participants.lock().await;
     lock.remove(part_id);
+  }
+}
+
+use gstreamer::{self as gst, glib};
+use gstreamer::prelude::*;
+pub struct SessionRecorder {
+  pipelines: Arc<Mutex<HashMap<String, gst::Pipeline>>>,
+  use_gpu: bool,
+}
+impl SessionRecorder {
+  pub fn new() -> Self {
+    gst::init().unwrap();
+
+    let use_gpu = gst::Registry::get()
+      .features(glib::types::Type::from_name("nvh264enc").unwrap())
+      .iter()
+      .any(|f| f.name().contains("nvh264enc"));
+
+    Self {
+      pipelines: Arc::new(Mutex::new(HashMap::new())),
+      use_gpu,
+    }      
+  }
+
+  pub fn start(
+    &self,
+    session_id: &str,
+    video_ports: &[u16],
+    audio_ports: &[u16],
+    output_file: &str,
+  ) {
+    let encoder = if self.use_gpu { "nvh264enc bitrate=2000" } else { "x264 bitrate=2000" };
+
+    let mut pipeline_desc = String::new();
+
+    for (i, port) in video_ports.iter().enumerate() {
+      pipeline_desc += &format!(
+        "udpsrc port={0} caps=\"application/x-rtp,media=video,encoding-name=VP8\" ! \
+         rtpvp8depay ! decodebin ! videoconvert ! queue ! ",
+        port,
+      );
+    }
+
+    pipeline_desc += &format!("{} ! queue ! mp4mux name=mux", encoder);
+
+    for port in audio_ports.iter() {
+      pipeline_desc += &format!(
+        "udpsrc port={0} caps=\"application/x-rtp,media=audio,encoding-name=OPUS\" ! \
+         rtpopusdepay ! opusdec ! audioconvert ! queue ! voaacenc ! mux. ",
+        port,
+      );
+    }
+
+    pipeline_desc += &format!("filesink location={}", output_file);
+
+    
   }
 }
 
@@ -317,11 +385,33 @@ async fn handle_new_connection(
   Extension(sid): Extension::<SocketId>,
   State(mut state): State::<ChatRoomState>,
 ) {
+  let (auth, host) = authenticate(&state.ctx.db.clone(), sock.clone(), data.appt_id).await;
+  if !auth {
+    tracing::error!("Unauthorized");
+    sock.disconnect().ok();
+    return;
+  }
   if sock.extensions.get::<Username>().is_some() {
     return;
   }
   let username = Username(data.username.clone());
-  println!("user.2: {:?}", &username);
+
+  let uri = &sock.req_parts().uri.to_string();
+  tracing::debug!("uri: {uri}");
+  // let ws_host = "https://localhost:3500"; // env::var("WSS_HOST").unwrap_or_default();
+  // let uri = format!("{}{}", ws_host, &sock.req_parts().uri.to_string());
+  // tracing::debug!("uri: {uri}");
+  let uri = url::Url::from_str(&uri).unwrap();
+  let pairs: HashMap<String, String> = uri.query_pairs().into_owned().collect();
+  let Some(appt_id) = pairs.get("appointmentId") else {
+    tracing::error!("Invalid appointment id");
+    let _ = sock.emit("error", "Invalid appointment id");
+    sock.disconnect().ok();
+    return;
+  };
+  let uid = Uuid::from_str(appt_id).unwrap();
+  sock.extensions.insert(AppointmentId(uid));
+
   let num_users = state.add_user();
   sock.extensions.insert(username.clone());
   sock.emit("login", &Res::Login { num_users }).ok();
@@ -333,6 +423,10 @@ async fn handle_new_connection(
       state.rooms_registry.get_or_create_room(Arc::new(sock.clone()), wm, rid).await.expect("err")
     },
     None => {
+      if !host {
+        sock.disconnect().ok();
+        return;
+      }
       tracing::info!("creating room");
       let room = state.rooms_registry.create_room(Arc::new(sock.clone()), wm).await.expect("err");
       let rid = room.id();
@@ -397,7 +491,7 @@ async fn init_room_handlers(sock: SocketRef, rx: &mut UnboundedReceiver<RoomMess
   }
 }
 
-async fn init_peer_handlers(
+/* async fn init_peer_handlers(
   participant_id: &ParticipantId,
   producers: &mut Vec<ProducerId>,
   tx: &UnboundedSender<ServerMessage>,
@@ -419,13 +513,123 @@ async fn init_peer_handlers(
       PeerMessage::Stop => {},
     }
   }
+} */
+
+async fn authenticate(
+  db: &DatabaseConnection,
+  sock: SocketRef,
+  appointment_id: Option<AppointmentId>,
+) -> (bool, bool) {
+  let Some(token) = extract_auth_header(sock.clone()) else {
+    return (false, false);
+  };
+  let Ok(claims) = verify_jwt(&token) else {
+    return (false, false);
+  };
+  let Some(AppointmentId(appt_id)) = appointment_id else {
+    return (false, false);
+  };
+
+  // check if user is either host or attendee
+  use std::fs::File;
+
+  let certs_dir = std::path::PathBuf::from_iter([std::env!("CARGO_MANIFEST_DIR"), "certs", "new"]);
+  let pem = std::fs::read_to_string(certs_dir.join("ca.pem")).expect("could not read CA pem file");
+
+  let root_cert = std::fs::File::open("certs/new/ca.pem").unwrap();
+  let mut root_cert_vec = Vec::new();
+  BufReader::new(root_cert).read_to_end(&mut root_cert_vec).expect("error reading cert file");
+
+  let ca = Certificate::from_pem(pem);
+
+  let client_cert = File::open("certs/new/localhost.san.pem").unwrap();
+  let mut client_cert_vec = Vec::new();
+  BufReader::new(client_cert).read_to_end(&mut client_cert_vec).expect("error reading cert file");
+
+  let client_key = File::open("certs/new/san-key.pem").unwrap();
+  let mut client_key_vec = Vec::new();
+  BufReader::new(client_key).read_to_end(&mut client_key_vec).expect("error reading key file");
+
+  let tls = ClientTlsConfig::new()
+    .ca_certificate(ca)
+    .identity(Identity::from_pem(&client_cert_vec, &client_key_vec))
+    .domain_name("localhost");
+
+  let channel = Channel::from_static("https://localhost:7891")
+    .tls_config(tls)
+    .expect("err")
+    .connect()
+    .await
+    .expect("msg");
+
+  let mut client = AppointmentServiceClient::new(channel);
+  let mut request = tonic::Request::new(AppointmentRetrieve {
+    id: appt_id.to_string(),
+  });
+
+  let auth_header = MetadataValue::try_from(format!("Bearer {}", &token)).expect("token is not valid");
+  request.metadata_mut().insert("authorization", auth_header);
+
+  let response = client.retrieve(request).await.expect("error sending request");
+  let r = response.get_ref();
+
+  let Some(ref data) = r.data else {
+    return (true, false);
+  };
+  match data {
+    appointment_response::Data::One(one) => {
+      // the user is proven to be a Participant
+    },
+    appointment_response::Data::List(list) => {
+      return (false, false);
+    },
+  }
+
+  tracing::info!("RESPONSE={response:?}");
+
+  tracing::info!("authenticating user with pid: {}", &claims.pid);
+  sock.emit("welcome", "welcome user").expect("error sending message");
+
+  (true, true)
+}
+
+fn extract_auth_header(sock: SocketRef) -> Option<String> {
+  let headers = &sock.req_parts().headers;
+  let access_token = headers.get_all("cookie").iter().find(|kv| {
+    kv.to_str().unwrap().starts_with("access-token")
+  }).expect("token not found").to_str().expect("invalid token");
+  let tok = access_token.split(";")
+    .find_map(|c| {
+      let c = c.trim();
+      if c.starts_with("access-token=") {
+        Some(c.trim_start_matches("access-token="))
+      } else {
+        None
+      }
+    });
+
+  match tok {
+    Some(tok) => Some(tok.to_string()),
+    None => None,
+  }
 }
 
 fn verify_jwt(token: &str) -> Result<UserClaims, jsonwebtoken::errors::Error> {
   let secret = std::env::var("JWT_SECRET")
     .expect("JWT_SECRET must be set");
 
-  let jwt = JWT::new(&secret);
+  use jsonwebtoken::{decode, DecodingKey, Validation};
+
+  // TODO: access vault and send request
+
+  let mut validate = Validation::new(Algorithm::HS512);
+  validate.leeway = 0;
+  /* let _ = decode::<UserClaims>(
+    token,
+    &DecodingKey::from_base64_secret("&self.secret")?,
+    &validate,
+  ); */
+  let jwt = JWT::new(&secret).algorithm(Algorithm::HS512);
   let token_data = jwt.validate(token).expect("validation failed");
   Ok(token_data.claims)
 }
@@ -454,17 +658,30 @@ impl Initializer for ChatInitializer {
     router: AxumRouter,
     ctx: &AppContext,
   ) -> Result<AxumRouter> {
+    let cc = ctx.clone();
     let (layer, io) = SocketIo::builder()
       .with_state(ChatRoomState::new(ctx.clone()))
       .build_layer();
 
-    io.ns("/meet", async |sock: SocketRef| {
+    cc.shared_store.insert(RealtimeService {
+      socket: io.clone(),
+    });
+
+    let db = cc.db.clone();
+    io.ns("/meet", async move |sock: SocketRef| {
       let socket_id = sock.id.to_string();
+      println!("socket_id: {socket_id}");
       sock.extensions.insert(SocketId(socket_id));
 
       let headers = &sock.req_parts().headers;
-      let cookies = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("default");
-      let tok = cookies.split(";")
+      println!("hh: {:#?}", &headers);
+      let access_token = headers.get_all("cookie").iter().find(|kv| {
+        kv.to_str().unwrap().starts_with("access-token")
+      }).expect("token not found").to_str().expect("invalid token");
+      // println!("access_token: {access_token}");
+      // let cookies = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("default");
+      // println!("cookies: {cookies}");
+      let tok = access_token.split(";")
         .find_map(|c| {
           let c = c.trim();
           if c.starts_with("access-token=") {
@@ -476,10 +693,12 @@ impl Initializer for ChatInitializer {
 
       match tok {
         Some(t) => {
+          tracing::info!("token from jar: {t}");
           match verify_jwt(t) {
             Ok(c) => {
               tracing::info!("authenticating user with pid: {}", &c.pid);
-              sock.emit("welcome", "welcome user").expect("error sending message");
+              let _ = sock.emit("welcome", "welcome user");
+              let _ = sock.emit("ping", "ping");
             },
             Err(err) => {
               tracing::error!("Error authenticating connection: {err}");
@@ -498,16 +717,10 @@ impl Initializer for ChatInitializer {
       }
 
       sock.on("join", handle_new_connection);
-
-      /* sock.on(
-        "test",
-        test_handler,
-      );
-      sock.on(
-        "add user",
-        handler_with_state,
-      ); */
       sock.on("clientmessage", handle_client_messages);
+      sock.on("pong", async |sock: SocketRef, Data(data): Data::<ChatData>, Extension(sid): Extension::<SocketId>, State(mut state): State::<ChatRoomState>| {
+        tracing::debug!("received pong");
+      });
       sock.on_disconnect(
         async |
           sock: SocketRef,
@@ -845,7 +1058,7 @@ mod participant {
   use socketioxide::extract::SocketRef;
   use tokio::sync::mpsc::unbounded_channel;
   use uuid::Uuid;
-  use crate::initializers::initialize_chat::{InternalChannel, PeerChannel, RoomChannel, ServerChannel, Username, init_internal_handlers, init_peer_handlers, init_room_handlers, init_server_handlers, participant::messages::{InternalMessage, PeerMessage, RoomMessage, ServerMessage, TransportOptions}, room::Room};
+  use crate::initializers::initialize_chat::{InternalChannel, PeerChannel, RoomChannel, ServerChannel, Username, init_internal_handlers, init_room_handlers, init_server_handlers, participant::messages::{InternalMessage, PeerMessage, RoomMessage, ServerMessage, TransportOptions}, room::Room};
 
   #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Deserialize, Serialize)]
   pub struct ParticipantId(Uuid);
