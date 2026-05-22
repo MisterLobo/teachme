@@ -1,27 +1,43 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator'
+import { IsEmail, IsEnum, IsNotEmpty, IsObject, IsPhoneNumber, IsString, IsTimeZone } from 'class-validator'
 import { Field, ObjectType } from '@nestjs/graphql'
 
 @ObjectType()
 export class SignupDto {
   @Field()
   @IsEmail()
-  email: string
+  email!: string
+
+  @Field()
+  @IsString()
+  username?: string
+
+  @Field()
+  @IsString()
+  password?: string
+
+  @Field()
+  @IsString()
+  firstName?: string
+
+  @Field()
+  @IsString()
+  lastName?: string
 
   @Field()
   @IsNotEmpty()
-  firstName: string
+  country!: string
 
   @Field()
-  @IsNotEmpty()
-  lastName: string
+  @IsString()
+  city?: string
 
   @Field()
-  @IsNotEmpty()
-  country: string
+  @IsString()
+  currency?: string
 
   @Field()
-  @IsNotEmpty()
-  role: string
+  @IsString()
+  role!: string
 
   @Field()
   @IsString()
@@ -34,4 +50,27 @@ export class SignupDto {
   @Field()
   @IsString()
   dob?: string
+
+  @Field()
+  @IsPhoneNumber()
+  phone?: string
+
+  @Field()
+  @IsString()
+  categories?: string
+
+  @Field()
+  @IsString()
+  subjects?: string
+
+  @Field()
+  @IsString()
+  bio?: string
+
+  @Field()
+  @IsTimeZone()
+  timezone!: string
+
+  @IsObject()
+  keys?: Record<string, any>
 }
