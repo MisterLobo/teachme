@@ -1,0 +1,11 @@
+package config
+
+import "os"
+
+func GetDSN() string {
+	DATABASE_CONNECTION := os.Getenv("DATABASE_CONNECTION")
+	return DATABASE_CONNECTION
+}
+
+const TIME_PARSE_FORMAT = "2006-01-02 15:04:05 -07:00"
+const ISO8601_DATETIME_FORMAT = "2006-01-02T15:04:05-0700"
