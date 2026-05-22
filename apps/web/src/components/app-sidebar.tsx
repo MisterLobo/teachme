@@ -50,8 +50,8 @@ const data = {
   ],
   navMain: [
     {
-      title: "Playground",
-      url: "#",
+      title: "Home",
+      url: "/dashboard",
       icon: (
         <TerminalSquareIcon
         />
@@ -59,21 +59,21 @@ const data = {
       isActive: true,
       items: [
         {
-          title: "History",
+          title: "Sessions",
           url: "#",
         },
         {
-          title: "Starred",
+          title: "Appointments",
           url: "#",
         },
         {
-          title: "Settings",
+          title: "Reviews",
           url: "#",
         },
       ],
     },
     {
-      title: "Models",
+      title: "Finance",
       url: "#",
       icon: (
         <BotIcon
@@ -81,41 +81,7 @@ const data = {
       ),
       items: [
         {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: (
-        <BookOpenIcon
-        />
-      ),
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
+          title: "Reports",
           url: "#",
         },
       ],

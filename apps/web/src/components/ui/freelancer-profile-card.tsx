@@ -6,12 +6,17 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./dialog";
-import { CoachSchedulingCard } from "./coach-scheduling-card";
+import { AvailableSlots, CoachSchedulingCard } from "./coach-scheduling-card";
+import { getTutorDetails } from "@/lib/actions";
 
 /**
  * Props for the FreelancerProfileCard component.
  */
 interface FreelancerProfileCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  recordId: string,
+  timezone: string,
+  availableSlots: AvailableSlots[],
+  record: Record<string, any>,
   /** The user's full name. */
   name: string;
   /** The user's job title or role. */
@@ -85,6 +90,10 @@ export const FreelancerProfileCard = React.forwardRef<
       tools,
       onGetInTouch,
       onBookmark,
+      recordId,
+      availableSlots,
+      timezone,
+      record,
       ...props
     },
     ref
@@ -93,6 +102,10 @@ export const FreelancerProfileCard = React.forwardRef<
       .split(" ")
       .map((n) => n[0])
       .join("");
+
+    React.useEffect(() => {
+      console.log('availableSlots:', availableSlots)
+    }, [availableSlots])
 
     return (
       <motion.div
@@ -164,9 +177,9 @@ export const FreelancerProfileCard = React.forwardRef<
           >
             <StatItem icon={Star} value={rating.toFixed(1)} label="rating" />
             <Divider />
-            <StatItem value={duration} label="duration" />
+            <StatItem value={duration} label="minutes" />
             <Divider />
-            <StatItem value={rate} label="rate" />
+            <StatItem value={rate} label="price" />
           </motion.div>
 
           {/* Action Button */}
@@ -185,6 +198,10 @@ export const FreelancerProfileCard = React.forwardRef<
                   onTimeSlotSelect={() => {}}
                   onLocationChange={() => {}}
                   onWeekChange={() => {}}
+                  recordId={recordId}
+                  timezone={timezone}
+                  availableSlots={availableSlots}
+                  record={record}
                   className="w-fit"
                 />
               </DialogContent>

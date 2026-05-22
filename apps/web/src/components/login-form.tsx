@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { bytesFromBase64, bytesToBase64, cn, createAccessCode, createMasterKey, deriveKEK, deriveKEKFromPasskey, ecdhExchangeKeys, exportKey, generateSecureBytes, insertKey, secureRandomBytes, splitAndStoreKEK, WrappedKeyPair } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -10,16 +10,130 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { GalleryVerticalEndIcon } from "lucide-react"
+import { Eye, EyeOff, Fingerprint, GalleryVerticalEndIcon } from "lucide-react"
 import Link from "next/link"
+import { Controller, SubmitHandler, useForm } from "react-hook-form"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { authenticate, getUserKeys, passkeyLoginBegin, passkeyLoginFinish } from "@/lib/actions"
+import { GenerateDHKeysType } from "@/lib/types"
+
+type FormSchema = {
+  email: string,
+  password: string,
+}
+
+type PasskeyFormSchema = {
+  email: string,
+}
 
 export function LoginForm({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<'div'>) {
+  const router = useRouter()
+  const [isVisible, setIsVisible] = useState(false)
+  const [authForm, setAuthForm] = useState<'email' | 'passkey' | 'oidc'>('email')
+  const {
+    formState: { errors },
+    getValues,
+    clearErrors,
+    control,
+    handleSubmit
+  } = useForm<FormSchema>({
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  })
+
+  const passkeyForm = useForm<PasskeyFormSchema>()
+
+  const onSubmit: SubmitHandler<FormSchema> = async (data) => {
+    console.log(data)
+    const { ok, keys } = await authenticate(data.email, data.password)
+    if (ok) {
+      if (keys) {
+        console.log(keys)
+        await Promise.all([
+          insertKey('wrapped_mk_cipher', Uint8Array.fromBase64(keys.masterKey?.wrappedCipher as string, { alphabet: 'base64url' })),
+          insertKey('wrapped_mk_iv', Uint8Array.fromBase64(keys.masterKey?.iv as string, { alphabet: 'base64url' })),
+          insertKey('user_keys', Uint8Array.from(Buffer.from(JSON.stringify(keys), 'utf8')))
+        ])
+      }
+      const rawKEK = await deriveKEK(data.password, bytesFromBase64(keys.salt!))
+      const kek = await exportKey(rawKEK)
+      await splitAndStoreKEK(bytesFromBase64(kek))
+
+      router.push('/me')
+    }
+  }
+
+  const loginWithPasskey = () => {
+    setAuthForm('passkey')
+  }
+
+  const submitPasskeyForm: SubmitHandler<PasskeyFormSchema> = async (data) => {
+    console.log('data:', data)
+    const begin = await passkeyLoginBegin(data.email)
+    console.log('begin:', begin)
+
+    const allowCredentials = Array.from(begin.optionsJSON.publicKey.allowCredentials).map((cred: any) => ({
+      ...cred,
+      id: Buffer.from(cred.id, 'base64'),
+    }))
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        ...begin.optionsJSON.publicKey,
+        challenge: Buffer.from(begin.optionsJSON.publicKey.challenge, 'base64'),
+        allowCredentials,
+        extensions: {
+          prf: {
+            eval: {
+              first: Buffer.from('salt', 'utf8'),
+            },
+          },
+        },
+      } as PublicKeyCredentialRequestOptions,
+    }) as PublicKeyCredential
+
+    const authres = assertion.response as AuthenticatorAssertionResponse
+    console.log('authres:', authres)
+
+    const ext = assertion.getClientExtensionResults()
+    console.log('ext:', ext)
+
+    if (ext.prf?.results?.first) {
+
+    }
+
+    const assertionData = {
+      id: assertion.id,
+      rawId: bytesToBase64(Buffer.from(assertion.rawId)),
+      type: assertion.type,
+      response: {
+        authenticatorData: bytesToBase64(Buffer.from(authres.authenticatorData)),
+        clientDataJSON: bytesToBase64(Buffer.from(assertion.response.clientDataJSON)),
+        signature: bytesToBase64(Buffer.from(authres.signature)),
+        userHandle: bytesToBase64(Buffer.from(authres.userHandle as ArrayBuffer)),
+        // type: assertion.type,
+      },
+      clientExtensionResults: ext,
+    }
+    console.log('assertion:', assertionData)
+
+    const finish = await passkeyLoginFinish(assertionData, begin.sessionId, begin.pid)
+    console.log('finish:', finish.success)
+
+    if (finish.success) {
+      router.push('/me')
+    }
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <form>
+      {authForm === 'email' &&
+      <form onSubmit={handleSubmit(onSubmit)}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
             <a
@@ -36,17 +150,51 @@ export function LoginForm({
               Don&apos;t have an account? <Link href="/signup">Sign up</Link>
             </FieldDescription>
           </div>
-          <Field>
-            <FieldLabel htmlFor="email">Email</FieldLabel>
-            <Input
-              id="email"
-              type="email"
-              placeholder="m@example.com"
-              required
-            />
-          </Field>
+          <Controller
+            name="email"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  {...field}
+                />
+              </Field>
+            )}
+          />
+          <Controller
+            name="password"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <div className="relative">
+                <Field >
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <Input
+                    id="password"
+                    type={isVisible ? 'text' : 'password'}
+                    {...field}
+                    className="bg-background w-full outline-none focus-within:border-blue-700 rounded-md p-2  border-2"
+                  />
+                </Field>
+                <div
+                  className='absolute top-7 right-2 text-2xl text-gray-500 cursor-pointer'
+                  onClick={() => setIsVisible((prev) => !prev)}
+                >
+                  {isVisible ? <Eye size={22} /> : <EyeOff size={22} />}
+                </div>
+              </div>
+            )}
+          />
           <Field>
             <Button type="submit" className="cursor-pointer">Login</Button>
+          </Field>
+          <Field>
+            <Button type="button" className="cursor-pointer" onClick={() => loginWithPasskey()}><Fingerprint /> Login with Passkey</Button>
           </Field>
           <FieldSeparator>Or</FieldSeparator>
           <Field className="grid gap-4 sm:grid-cols-2">
@@ -71,6 +219,27 @@ export function LoginForm({
           </Field>
         </FieldGroup>
       </form>
+      }
+      {authForm === 'passkey' &&
+      <form onSubmit={passkeyForm.handleSubmit(submitPasskeyForm)}>
+        <Controller
+            name="email"
+            control={passkeyForm.control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="yourname@example.com"
+                  {...field}
+                />
+              </Field>
+            )}
+          />
+      </form>
+      }
       <FieldDescription className="px-6 text-center">
         By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
         and <a href="#">Privacy Policy</a>.

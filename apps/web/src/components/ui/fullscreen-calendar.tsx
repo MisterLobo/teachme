@@ -148,11 +148,6 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
             orientation="horizontal"
             className="block w-full md:hidden"
           />
-
-          <Button className="w-full gap-2 md:w-auto">
-            <PlusCircleIcon size={16} strokeWidth={2} aria-hidden="true" />
-            <span>New Event</span>
-          </Button>
         </div>
       </div>
 
