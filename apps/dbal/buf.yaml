@@ -1,0 +1,12 @@
+version: v2
+modules:
+  - path: proto
+deps:
+  - buf.build/bufbuild/protovalidate
+  - buf.build/envoyproxy/protoc-gen-validate
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
