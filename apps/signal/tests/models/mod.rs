@@ -16,3 +16,6 @@ mod tutor_reviews;
 mod tutor_boosts;
 mod somethings;
 mod abcs;
+mod credits;
+mod credit_usages;
+mod subscriptions;
