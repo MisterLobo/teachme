@@ -193,7 +193,7 @@ pub fn routes() -> Routes {
     Routes::new()
         .prefix("api/tutors/")
         .add("/", get(index))
-        .add("/search", post(search))
+        // .add("/search", post(search))
         .add("/{id}", get(get_by_id))
         .add("/metadata", get(get_metadata))
 }

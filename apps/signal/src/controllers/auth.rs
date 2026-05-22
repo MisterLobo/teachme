@@ -1,9 +1,7 @@
 use crate::{
-    mailers::auth::AuthMailer,
-    models::{
-        self, _entities::{sea_orm_active_enums::{self, CustomerType, TenantType}, users}, customers::{self, CustomerParams}, parents, students, tenants::{self, TenantParams}, tutors::{self, CreateParams}, users::{LoginParams, RegisterParams, UserRole}
-    },
-    views::auth::{CurrentResponse, LoginResponse}, workers::{create_stripe_connect, create_stripe_customer, create_tutor_embedding::{self, TutorDocument, WorkerArgs}},
+    mailers::auth::AuthMailer, models::{
+        self, _entities::{sea_orm_active_enums::{self, CustomerType, TenantType}, users}, customers::{self, CustomerParams, StripeCustomerParams}, parents, students, subscriptions::{self, UnlockedFeatures}, tenants::{self, TenantParams}, tutors::{self, CreateParams}, users::{LoginParams, RegisterParams, UserRole, UserType}
+    }, services::RedisService, views::auth::{CurrentResponse, LoginResponse}, workers::{create_stripe_connect, create_stripe_customer, create_stripe_subscription, create_tutor_embedding::{self, TutorDocument, WorkerArgs}}
 };
 use axum::http::{HeaderMap, HeaderValue};
 use loco_rs::prelude::{format::json, *};
@@ -14,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, value::Serializer};
 use slugify::slugify;
 use std::{collections::HashMap, env, sync::OnceLock};
+use redis::{Commands, JsonCommands};
 
 pub static EMAIL_DOMAIN_RE: OnceLock<Regex> = OnceLock::new();
 
@@ -108,6 +107,12 @@ async fn register(
                             ..Default::default()
                         };
                         let tutor = tutors::Model::create_tutor(&ctx.db, &cp).await?;
+
+                        let _ = &ctx.cache.insert(
+                            &format!("{}:profile", &user.pid.to_string()),
+                            &tutor,
+                        ).await?;
+
                         let model = tutor.clone();
                         let document = format!(
                             "categories: {0}, subjects: {1}, country: {2}, currency: {3}, bio: {4}, session_price: {5:.2}, language: {6}, session_duration: {7}",
@@ -124,10 +129,41 @@ async fn register(
                         create_stripe_connect::Worker::perform_later(
                             &ctx,
                             create_stripe_connect::WorkerArgs {
+                                pid: user.pid.clone(),
                                 params: Some(params.clone()),
                                 tutor: Some(model.clone()),
                             })
                             .await?;
+
+                        /* create_stripe_customer::Worker::perform_later(
+                            &ctx,
+                            create_stripe_customer::WorkerArgs {
+                                role: UserType::Individual,
+                                row_id: Some(tenant.id),
+                                customer: Some(
+                                    customers::StripeCustomerParams {
+                                        email: params.email,
+                                        name: format!("{} {}", params.first_name.unwrap_or_default(), params.last_name.unwrap_or_default()),
+                                    },
+                                ),
+                            },
+                        )
+                        .await?; */
+
+                        create_stripe_subscription::Worker::perform_later(
+                            &ctx,
+                            create_stripe_subscription::WorkerArgs {
+                                pid: user.pid.clone(),
+                                customer_params: Some(StripeCustomerParams {
+                                    email: user.email.clone(),
+                                    name: tutor.name(),
+                                }),
+                                plan: Some(models::subscriptions::SubscriptionPlan::Basic),
+                                features: Some(UnlockedFeatures::trial().trial_credits(3)),
+                                role_id: Some(models::users::RoleWithId::Tenant(tenant.id.clone())),
+                                sub_type: Some(models::subscriptions::SubscriptionType::Trial),
+                            },
+                        ).await?;
 
                         create_tutor_embedding::Worker::perform_later(
                             &ctx,
@@ -171,19 +207,35 @@ async fn register(
                             ..Default::default()
                         };
                         let student = students::Model::create(&ctx.db, &cp).await?;
-                        create_stripe_customer::Worker::perform_later(
+
+                        create_stripe_subscription::Worker::perform_later(
+                            &ctx,
+                            create_stripe_subscription::WorkerArgs {
+                                pid: user.pid.clone(),
+                                customer_params: Some(StripeCustomerParams {
+                                    email: user.email.clone(),
+                                    name: student.name(),
+                                }),
+                                plan: Some(models::subscriptions::SubscriptionPlan::Basic),
+                                features: Some(UnlockedFeatures::trial().trial_credits(10)),
+                                role_id: Some(models::users::RoleWithId::Customer(customer.id.clone())),
+                                sub_type: Some(models::subscriptions::SubscriptionType::Trial),
+                            },
+                        ).await?;
+                        /* create_stripe_customer::Worker::perform_later(
                             &ctx,
                             create_stripe_customer::WorkerArgs {
+                                role: UserType::Student,
                                 row_id: Some(customer.id),
                                 customer: Some(
-                                    customers::Customer::Student(customers::StripeCustomer {
+                                    customers::StripeCustomerParams {
                                         email: params.email,
                                         name: format!("{} {}", params.first_name.unwrap_or_default(), params.last_name.unwrap_or_default()),
-                                    }),
+                                    },
                                 ),
                             },
                         )
-                        .await?;
+                        .await?; */
                     },
                     CustomerType::ParentGuardian => {
                         let cp = parents::CreateParams {
@@ -200,12 +252,13 @@ async fn register(
                         create_stripe_customer::Worker::perform_later(
                             &ctx,
                             create_stripe_customer::WorkerArgs {
+                                role: UserType::Parent,
                                 row_id: Some(customer.id),
                                 customer: Some(
-                                    customers::Customer::Parent(customers::StripeCustomer {
+                                    customers::StripeCustomerParams {
                                         email: params.email,
                                         name: format!("{} {}", params.first_name.unwrap_or_default(), params.last_name.unwrap_or_default()),
-                                    }),
+                                    },
                                 ),
                             },
                         )
@@ -307,16 +360,33 @@ async fn login(State(ctx): State<AppContext>, Json(params): Json<LoginParams>) -
     let tenant_id = match user.role {
         sea_orm_active_enums::UserRole::Tenant => {
             let tenant = tenants::Model::find_by_user(&ctx.db, &user.id).await?;
-            tenant.unwrap().id.to_string()
+            tenant.unwrap().id
         },
         sea_orm_active_enums::UserRole::Customer => {
             let customer = customers::Model::find_by_user(&ctx.db, &user.id).await?;
-            customer.id.to_string()
+            customer.id
         },
     };
     let token = user
-        .generate_jwt(&jwt_secret.secret, jwt_secret.expiration, Some(tenant_id))
+        .generate_jwt(&jwt_secret.secret, jwt_secret.expiration, Some(tenant_id.to_string()))
         .or_else(|_| unauthorized("unauthorized!"))?;
+
+    let _  = ctx.cache.insert(&format!("{}:role", &user.pid.to_string()), &user.role).await?;
+
+    let sub = subscriptions::Model::get_subscription(&ctx.db, &tenant_id).await?;
+    let features = subscriptions::Model::get_features(&ctx.db, &tenant_id).await?;
+    // let _ = ctx.cache.insert(&format!("{}:features", &user.pid.to_string()), &features).await?;
+
+    let stripe_customer_id = sub.clone().unwrap().stripe_customer_id;
+    if let Some(r) = ctx.shared_store.get::<RedisService>() {
+        let mut con = r.client.get_connection().expect("Failed to create connection");
+        let _: () = con.set(&format!("{}:stripe-customer", &user.pid.to_string()), stripe_customer_id.unwrap_or_default()).expect("Error writing to cache");
+        let _: () = con.json_set(&format!("{}:subscription", &user.pid.to_string()), "$", &serde_json::json!(&sub)).expect("Error writing to cache");
+        let _: () = con.json_set(&format!("{}:features", &user.pid.to_string()), "$", &serde_json::json!(&features)).expect("Error writing to cache");
+        let _: () = con.json_set(&format!("{}:credits", &user.pid.to_string()), "$", &serde_json::json!({
+            "amount": &features.unwrap().trial_credits,
+        })).expect("Error writing to cache");
+    }
 
     format::json(LoginResponse::new(&user, &token))
 }

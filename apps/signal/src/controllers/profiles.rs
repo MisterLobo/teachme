@@ -6,7 +6,7 @@ use rust_decimal::prelude::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{models::{self, _entities::{organizations, parents, sea_orm_active_enums::{self, CustomerType, TenantType}, students, tutors}, customers, tenants, users::{self, UserType}}, views::profile::{ProfileResonse, ProfileResponseStatus}};
+use crate::{models::{self, _entities::{organizations, parents, sea_orm_active_enums::{self, CustomerType, TenantType}, students, tutors}, customers, tenants, users::{self, AuthUser, UserType}}, views::profile::{ProfileResonse, ProfileResponseStatus}};
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct UpdateParams {
@@ -195,10 +195,33 @@ async fn update(
     format::empty_json()
 }
 
+pub async fn get_metadata(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    let ut = get_profile_type(&auth, &ctx).await?;
+    match ut {
+        ProfileType::Individual(m) => {
+            let md = m.cal_metadata;
+            format::json(md)
+        },
+        _ => format::empty_json()
+    }
+}
+
+pub fn check_credits(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    Json(params): Json<UpdateParams>,
+) -> Result<Response> {
+    format::empty()
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("api/profile/")
         .add("/", get(me))
+        .add("/metadata", get(get_metadata))
         .add("/", put(update))
         .add("/check", get(check_profile))
 }
