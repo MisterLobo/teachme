@@ -1,6 +1,6 @@
 use chrono::{Duration, Local};
 use loco_rs::model::ModelResult;
-use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, FromQueryResult, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 pub use super::_entities::credits::{ActiveModel, Model, Entity};
 pub type Credits = Entity;
@@ -11,6 +11,16 @@ pub struct CreditParams {
     pub amount: Option<i32>,
     pub description: Option<String>,
     pub expiry: Option<DateTimeWithTimeZone>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, FromQueryResult)]
+#[sea_orm(entity = "credits::Entity")]
+#[serde(rename_all = "camelCase")]
+pub struct CreditsHistory {
+    pub amount: Option<i32>,
+    pub remaining: Option<i32>,
+    #[sea_orm(nested)]
+    pub history: crate::models::credit_usages::CreditUsage,
 }
 
 #[async_trait::async_trait]

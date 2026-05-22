@@ -18,7 +18,7 @@ pub struct Model {
     pub start_at: DateTimeWithTimeZone,
     pub end_at: DateTimeWithTimeZone,
     pub duration: i32,
-    pub cal_booking_id: Option<i32>,
+    pub cal_booking_id: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub cal_metadata: Option<Json>,
     pub status: Option<AppointmentStatus>,

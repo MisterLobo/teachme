@@ -1,6 +1,8 @@
 use loco_rs::model::ModelResult;
-use sea_orm::{ActiveValue, FromJsonQueryResult, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, FromJsonQueryResult, QuerySelect, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
+use crate::models::_entities::subscriptions;
+
 pub use super::_entities::subscriptions::{ActiveModel, Model, Entity};
 pub type Subscriptions = Entity;
 
@@ -22,15 +24,15 @@ pub enum SubscriptionPlan {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, FromJsonQueryResult, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UnlockedFeatures {
-    full: bool,
-    assistant: Option<bool>,
-    smart_search: Option<bool>,
-    boost_ranking: Option<bool>,
-    review_session_recordings: Option<bool>,
-    generate_transcripts: Option<bool>,
-    org_size: Option<usize>,
-    trial_credits: Option<u8>,
-    trial_days: Option<u32>,
+    pub full: bool,
+    pub assistant: Option<bool>,
+    pub smart_search: Option<bool>,
+    pub boost_ranking: Option<bool>,
+    pub review_session_recordings: Option<bool>,
+    pub generate_transcripts: Option<bool>,
+    pub org_size: Option<usize>,
+    pub trial_credits: Option<u8>,
+    pub trial_days: Option<u32>,
 }
 
 impl UnlockedFeatures {
@@ -146,6 +148,25 @@ impl ActiveModelBehavior for ActiveModel {
 
 // implement your read-oriented logic here
 impl Model {
+    pub async fn get_subscription(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<Option<Self>> {
+        let sub = Entity::find_by_id(*id).one(db).await?;
+        Ok(sub)
+    }
+
+    pub async fn get_features(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<Option<UnlockedFeatures>> {
+        let row = Entity::find_by_id(*id)
+            .column(subscriptions::Column::UnlockedFeatures)
+            .one(db)
+            .await?
+            .and_then(|r| r.unlocked_features);
+        Ok(row)
+    }
     pub async fn create(
         db: &DatabaseConnection,
         params: &CreateSubscriptionParams,

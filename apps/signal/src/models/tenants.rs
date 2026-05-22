@@ -1,7 +1,7 @@
-use loco_rs::model::{self, ModelResult};
-use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
+use loco_rs::model::{self, ModelError, ModelResult};
+use sea_orm::{ActiveValue, FromJsonQueryResult, FromQueryResult, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
-use crate::models::{_entities::{sea_orm_active_enums::TenantType, tenants}};
+use crate::models::{_entities::{sea_orm_active_enums::TenantType, tenants}, users};
 
 pub use super::_entities::tenants::{ActiveModel, Model, Entity};
 pub type Tenants = Entity;
@@ -14,6 +14,11 @@ pub struct TenantParams {
     #[serde(rename = "tenantType")]
     pub tenant_type: TenantType,
     pub name: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, FromQueryResult)]
+pub struct TenantPid {
+    pub id: Uuid,
 }
 
 #[async_trait::async_trait]
@@ -87,4 +92,24 @@ impl Model {
 impl ActiveModel {}
 
 // implement your custom finders, selectors oriented logic here
-impl Entity {}
+impl Entity {
+    pub async fn get_pid(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<TenantPid> {
+        let Some((tenant, user)) = Self::find_by_id(*id)
+            .find_with_related(users::Entity)
+            .into_json()
+            .one(db)
+            .await? else {
+                return Err(ModelError::EntityNotFound);
+            };
+        let Some(user) = user else {
+            return Err(ModelError::EntityNotFound);
+        };
+        tracing::debug!("tenant: {:?}", &tenant);
+        let model: TenantPid = serde_json::from_value(tenant).unwrap();
+        tracing::debug!("user: {:?}", &user);
+        Ok(model)
+    }
+}

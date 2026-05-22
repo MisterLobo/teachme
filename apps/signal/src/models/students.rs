@@ -1,13 +1,13 @@
 use loco_rs::model::{self, ModelError, ModelResult};
-use sea_orm::{ActiveValue, Condition, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, Condition, DbBackend, FromJsonQueryResult, FromQueryResult, JoinType, QuerySelect, QueryTrait, SelectColumns, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
-
-use crate::models::_entities::students::{self, ActiveModel};
-
+use crate::models::{_entities::{credit_usages, credits, customers, students::{self, ActiveModel}, users}, customers::CustomerPid};
 pub use super::_entities::students::{Model, Entity};
+
 pub type Students = Entity;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateParams {
     #[serde(rename = "firstName")]
     pub first_name: String,
@@ -29,6 +29,7 @@ pub struct CreateParams {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateParams {
     #[serde(rename = "firstName")]
     pub first_name: String,
@@ -42,6 +43,27 @@ pub struct UpdateParams {
     pub language: Option<String>,
     pub category: Option<String>,
     pub subject: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, FromQueryResult)]
+#[sea_orm(entity = "students::Entity")]
+pub struct StudentPid {
+    pub id: Uuid,
+    pub pid: Uuid,
+    #[sea_orm(nested)]
+    pub customer: crate::models::customers::CustomerPid,
+    #[sea_orm(nested)]
+    pub user: crate::models::users::UserPid,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, FromQueryResult)]
+#[sea_orm(entity = "students::Entity")]
+pub struct StudentCredits {
+    pub id: Uuid,
+    pub used: Option<i64>,
+    pub amount: Option<i32>,
+    #[sea_orm(nested)]
+    pub credits: crate::models::credits::CreditsHistory,
 }
 
 #[async_trait::async_trait]
@@ -96,7 +118,7 @@ impl Model {
         db: &DatabaseConnection,
         customer_id: &Uuid,
     ) -> ModelResult<Self> {
-        let student = students::Entity::find()
+        let student = Students::find()
             .filter(
                 Condition::all()
                     .add(students::Column::CustomerId.eq(*customer_id))
@@ -110,7 +132,7 @@ impl Model {
         db: &DatabaseConnection,
         parent_id: &Uuid,
     ) -> ModelResult<Self> {
-        let student = students::Entity::find()
+        let student = Students::find()
             .filter(
                 model::query::condition()
                     .eq(students::Column::ParentId, *parent_id)
@@ -135,4 +157,54 @@ impl ActiveModel {
 }
 
 // implement your custom finders, selectors oriented logic here
-impl Entity {}
+impl Entity {
+    pub async fn get_pid(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<StudentPid> {
+        let stmt = Entity::find_by_id(*id)
+            .select_only()
+            .column(students::Column::Id)
+            .tbl_col_as((users::Entity, users::Column::Pid), "pid")
+            .left_join(customers::Entity)
+            .join(JoinType::LeftJoin, customers::Relation::Users.def());
+        let sstmt = stmt.build(DbBackend::Postgres)
+            .to_string();
+        tracing::debug!("stmt: {sstmt}");
+        let Some(student) = stmt.into_model::<StudentPid>()
+            .one(db)
+            .await
+            .expect("student query error") else {
+                return Err(ModelError::EntityNotFound);
+            };
+        tracing::debug!("pid: {:?}", &student);
+        Ok(student)
+    }
+    pub async fn check_credits(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<StudentCredits> {
+        let stmt = Entity::find_by_id(*id)
+            .select_only()
+            .column(students::Column::Id)
+            .tbl_col_as((credits::Entity, credits::Column::Amount), "amount")
+            .column_as(credit_usages::Column::Amount.sum(), "used")
+            .left_join(credits::Entity)
+            .left_join(credit_usages::Entity)
+            // .join(JoinType::LeftJoin, credit_usages::Relation::Students.def())
+            // .join(JoinType::InnerJoin, students::Relation::CreditUsages.def())
+            .group_by(students::Column::Id)
+            .group_by(credits::Column::Amount);
+        let sstmt = stmt.build(DbBackend::Postgres)
+            .to_string();
+        tracing::debug!("stmt: {sstmt}");
+        let Some(student) = stmt.into_model::<StudentCredits>()
+            .one(db)
+            .await
+            .expect("student credits error") else {
+                return Err(ModelError::EntityNotFound);
+            };
+        tracing::debug!("student credits: {:?}", &student);
+        Ok(student)
+    }
+}

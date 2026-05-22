@@ -8,14 +8,18 @@ use serde::{Deserialize, Serialize};
 pub enum AppointmentStatus {
     #[sea_orm(string_value = "pending")]
     Pending,
+    #[sea_orm(string_value = "confirmed")]
+    Confirmed,
     #[sea_orm(string_value = "ongoing")]
     Ongoing,
     #[sea_orm(string_value = "cancelled")]
     Cancelled,
     #[sea_orm(string_value = "completed")]
     Completed,
-    #[sea_orm(string_value = "noshow")]
-    Noshow,
+    #[sea_orm(string_value = "noshow_host")]
+    NoShowHost,
+    #[sea_orm(string_value = "noshow_attendee")]
+    NoShowAttendee,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "credit_status")]

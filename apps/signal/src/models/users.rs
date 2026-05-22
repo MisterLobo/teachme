@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use chrono::{offset::Local, Duration};
 use loco_rs::{auth::jwt, hash, prelude::*};
-use sea_orm::{ActiveEnum, DerivePartialModel, FromQueryResult};
+use sea_orm::{ActiveEnum, DerivePartialModel, FromQueryResult, QuerySelect};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use uuid::Uuid;
 
-use crate::models::{self, _entities::{customers, sea_orm_active_enums::{self, CustomerType, TenantType}, tenants}};
+use crate::models::{self, _entities::{customers, sea_orm_active_enums::{self, CustomerType, TenantType, UserRole as Role}, tenants}};
 
 pub use super::_entities::users::{self, ActiveModel, Entity, Model};
 
@@ -36,28 +36,65 @@ pub enum RoleWithId {
 #[sea_orm(table_name = "users")]
 #[serde(rename_all = "camelCase")]
 pub struct SafeModel {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
-    #[sea_orm(unique)]
     pub email: String,
     pub name: String,
-    #[serde(rename = "emailVerifiedAt")]
     pub email_verified_at: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "resetSentAt")]
     pub reset_sent_at: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "emailVerficationToken")]
     pub email_verification_token: Option<String>,
-    #[serde(rename = "emailVerificationSentAt")]
     pub email_verification_sent_at: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "magicLinkExpiration")]
     pub magic_link_expiration: Option<DateTimeWithTimeZone>,
-    #[serde(rename = "calUserId")]
     pub cal_user_id: Option<i32>,
-    #[sea_orm(column_type = "Text", nullable)]
     pub cal_username: Option<String>,
     pub phone: Option<String>,
-    #[serde(rename = "phoneVerifiedAt")]
     pub phone_verified_at: Option<DateTimeWithTimeZone>,
+    pub role: Option<Role>,
+    pub pid: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[serde(rename_all = "camelCase")]
+pub struct UserPid {
+    #[sea_orm(from_col = "id")]
+    pub id: Uuid,
+    pub pid: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[serde(rename_all = "camelCase")]
+pub struct NamedUser {
+    #[sea_orm(from_col = "id")]
+    pub id: Uuid,
+    pub pid: Option<Uuid>,
+    pub email: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[sea_orm(table_name = "users")]
+#[serde(rename_all = "camelCase")]
+pub struct EmailWithRoleId {
+    pub id: Option<Uuid>,
+    pub email: Option<String>,
+    pub role: Option<Role>,
+    pub pid: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[sea_orm(table_name = "users")]
+#[serde(rename_all = "camelCase")]
+pub struct AuthUser {
+    pub id: Option<Uuid>,
+    pub email: Option<String>,
+    pub name: String,
+    pub role: Option<Role>,
+    pub cal_user_id: Option<i32>,
+    pub cal_username: Option<String>,
+    pub pid: Option<Uuid>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -169,6 +206,24 @@ impl Authenticable for Model {
 }
 
 impl Model {
+    pub fn safe(&self) -> SafeModel {
+        SafeModel {
+            id: self.id,
+            cal_user_id: self.cal_user_id.clone(),
+            cal_username: self.cal_username.clone(),
+            email: self.email.clone(),
+            name: self.name.clone(),
+            phone: self.phone.clone(),
+            email_verification_sent_at: None,
+            email_verification_token: None,
+            email_verified_at: None,
+            magic_link_expiration: None,
+            phone_verified_at: None,
+            reset_sent_at: None,
+            role: Some(self.role),
+            pid: Some(self.pid),
+        }
+    }
     /// finds a user by the provided email
     ///
     /// # Errors
@@ -277,6 +332,28 @@ impl Model {
         user.ok_or_else(|| ModelError::EntityNotFound)
     }
 
+    pub async fn find_as_safe(db: &DatabaseConnection, pid: &Uuid) -> ModelResult<SafeModel> {
+        let user = users::Entity::find()
+            .filter(
+                model::query::condition()
+                    .eq(users::Column::Pid, *pid)
+                    .build(),
+            )
+            .select_only()
+            .column(users::Column::Id)
+            .column(users::Column::Role)
+            .column(users::Column::Email)
+            .column(users::Column::Name)
+            .column(users::Column::Phone)
+            .column(users::Column::Pid)
+            .column(users::Column::CalUserId)
+            .column(users::Column::CalUsername)
+            .into_model::<SafeModel>()
+            .one(db)
+            .await?;
+        user.ok_or_else(|| ModelError::EntityNotFound)
+    }
+
     pub async fn get_user_type(db: &DatabaseConnection, pid: &str) -> UserType {
         let parse_uuid = Uuid::parse_str(pid).map_err(|e| ModelError::Any(e.into())).expect("failed to parse UUID from str");
         let user = users::Entity::find()
@@ -323,6 +400,61 @@ impl Model {
             }
         } else {
             UserType::Null
+        }
+    }
+
+    pub async fn get_user_role(db: &DatabaseConnection, id: &Uuid) -> Option<(UserRole, RoleWithId)> {
+        let role = Entity::find()
+            .filter(
+                model::query::condition()
+                    .eq(users::Column::Pid, *id)
+                    .build(),
+            )
+            .select_only()
+            .column(users::Column::Id)
+            .column(users::Column::Role)
+            .into_model::<EmailWithRoleId>()
+            .one(db)
+            .await
+            .expect("Error query");
+        
+        tracing::debug!("role: {:?}", &role);
+        let Some(user) = role else {
+            return None;
+        };
+        match user.role {
+            Some(Role::Tenant) => {
+                let Some(tenant) = tenants::Model::find_by_user(db, &user.id.unwrap()).await.expect("err") else {
+                    return None;
+                };
+                match tenant.tenant_type {
+                    TenantType::Individual => Some((
+                        UserRole::Tenant(TenantType::Individual),
+                        RoleWithId::Tenant(tenant.id),
+                    )),
+                    TenantType::Organization => Some((
+                        UserRole::Tenant(TenantType::Organization),
+                        RoleWithId::Tenant(tenant.id),
+                    )),
+                }
+            },
+            Some(Role::Customer) => {
+                let Ok(customer) = customers::Model::find_by_user(db, &user.id.unwrap()).await else {
+                    return None;
+                };
+                match customer.customer_type {
+                    CustomerType::StudentLearner => Some((
+                        UserRole::Customer(CustomerType::StudentLearner),
+                        RoleWithId::Customer(customer.id),
+                    )),
+                    CustomerType::ParentGuardian => Some((
+                        UserRole::Customer(CustomerType::ParentGuardian),
+                        RoleWithId::Customer(customer.id),
+                    )),
+                    _ => None,
+                }
+            },
+            None => None,
         }
     }
 

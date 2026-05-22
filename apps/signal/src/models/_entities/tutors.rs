@@ -91,6 +91,10 @@ pub enum Relation {
     TutorBoosts,
     #[sea_orm(has_many = "super::tutor_reviews::Entity")]
     TutorReviews,
+    #[sea_orm(has_many = "super::credit_usages::Entity")]
+    CreditUsages,
+    #[sea_orm(has_one = "super::credits::Entity")]
+    Credits,
 }
 
 impl Related<super::appointments::Entity> for Entity {
@@ -120,5 +124,17 @@ impl Related<super::tutor_boosts::Entity> for Entity {
 impl Related<super::tutor_reviews::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::TutorReviews.def()
+    }
+}
+
+impl Related<super::credits::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Credits.def()
+    }
+}
+
+impl Related<super::credit_usages::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CreditUsages.def()
     }
 }

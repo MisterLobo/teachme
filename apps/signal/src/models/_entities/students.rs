@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "students")]
+#[sea_orm(model)]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
@@ -39,6 +40,22 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Parents,
+    #[sea_orm(
+        belongs_to = "super::customers::Entity",
+        from = "Column::CustomerId",
+        to = "super::customers::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Customers,
+    #[sea_orm(has_many = "super::credit_usages::Entity")]
+    CreditUsages,
+    #[sea_orm(has_one = "super::credits::Entity")]
+    Credits,
+    #[sea_orm(has_many = "super::tutor_reviews::Entity")]
+    Reviews,
+    #[sea_orm(has_many = "super::tutorial_sessions::Entity")]
+    Sessions,
 }
 
 impl Related<super::appointments::Entity> for Entity {
@@ -50,5 +67,35 @@ impl Related<super::appointments::Entity> for Entity {
 impl Related<super::parents::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Parents.def()
+    }
+}
+
+impl Related<super::customers::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Customers.def()
+    }
+}
+
+impl Related<super::credits::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Credits.def()
+    }
+}
+
+impl Related<super::credit_usages::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CreditUsages.def()
+    }
+}
+
+impl Related<super::tutor_reviews::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Reviews.def()
+    }
+}
+
+impl Related<super::tutorial_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Sessions.def()
     }
 }

@@ -3,12 +3,16 @@ use std::collections::HashMap;
 use loco_rs::{model::{ModelError, ModelResult}, prelude::model};
 use reqwest::Client;
 use rust_decimal::prelude::FromPrimitive;
-use sea_orm::{ActiveValue, Condition, FromJsonQueryResult, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, Condition, DbBackend, FromJsonQueryResult, FromQueryResult, JoinType, QuerySelect, QueryTrait, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
-use crate::models::{_entities::tutors, tenants};
+use crate::models::{_entities::{tenants, tutors, users}};
 
-pub use super::_entities::tutors::{ActiveModel, Model, Entity};
+pub use super::_entities::tutors::{ActiveModel, Column, Model, Entity};
 pub type Tutors = Entity;
+pub type Tutor = Model;
+
+pub type UserColumn = users::Column;
+pub type TenantRelation = tenants::Relation;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SearchParams {
@@ -186,6 +190,16 @@ impl TutorCalMetadata {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, FromQueryResult)]
+pub struct TutorPid {
+    pub id: Uuid,
+    pub pid: Uuid,
+    #[sea_orm(nested)]
+    pub tenant: crate::models::tenants::TenantPid,
+    #[sea_orm(nested)]
+    pub user: crate::models::users::UserPid,
+}
+
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {
     async fn before_save<C>(self, _db: &C, insert: bool) -> std::result::Result<Self, DbErr>
@@ -324,16 +338,50 @@ impl ActiveModel {
         mut self,
         db: &DatabaseConnection,
         params: &UpdateParams,
-    ) -> ModelResult<Model> {
+    ) -> ModelResult<()> {
         // self.id = ActiveValue::Set(*id);
+        let txn = db.begin().await?;
+
         self.bio = ActiveValue::Set(params.bio.clone());
         self.title = ActiveValue::Set(params.title.clone());
         self.currency = ActiveValue::Set(params.currency.clone().unwrap_or("USD".to_string()));
         self.session_duration = ActiveValue::Set(params.session_duration.clone().unwrap_or(30));
         self.session_price = ActiveValue::Set(Decimal::from_f32(params.session_price.unwrap_or(0.)));
-        self.update(db).await.map_err(ModelError::from)
+
+        self.update(&txn).await?;
+
+        Ok(txn.commit().await?)
     }
 }
 
 // implement your custom finders, selectors oriented logic here
-impl Entity {}
+impl Entity {
+    pub async fn get_pid(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<TutorPid> {
+        let stmt = Entity::find_by_id(*id)
+            .select_only()
+            .column(tutors::Column::Id)
+            .tbl_col_as((users::Entity, UserColumn::Pid), "pid")
+            .left_join(tenants::Entity)
+            .join(JoinType::LeftJoin, TenantRelation::Users.def())
+            .build(DbBackend::Postgres)
+            .to_string();
+        tracing::debug!("stmt: {stmt}");
+        let Some(tutor) = Entity::find_by_id(*id)
+            .select_only()
+            .column(tutors::Column::Id)
+            .tbl_col_as((users::Entity, users::Column::Pid), "pid")
+            .left_join(tenants::Entity)
+            .join(JoinType::LeftJoin, TenantRelation::Users.def())
+            .into_model::<TutorPid>()
+            .one(db)
+            .await
+            .expect("tutors query error") else {
+                return Err(ModelError::EntityNotFound);
+            };
+        tracing::debug!("tutor: {:?}", &tutor);
+        Ok(tutor)
+    }
+}

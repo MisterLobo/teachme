@@ -29,10 +29,24 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Tutors,
+    #[sea_orm(
+        belongs_to = "super::students::Entity",
+        from = "Column::ReviewerId",
+        to = "super::students::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Reviewer,
 }
 
 impl Related<super::tutors::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Tutors.def()
+    }
+}
+
+impl Related<super::students::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Reviewer.def()
     }
 }

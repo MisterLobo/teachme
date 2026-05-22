@@ -1,8 +1,8 @@
 use loco_rs::{model::{ModelError, ModelResult}, prelude::model};
-use sea_orm::{ActiveValue, TransactionTrait, entity::prelude::*};
+use sea_orm::{ActiveValue, FromJsonQueryResult, FromQueryResult, TransactionTrait, entity::prelude::*};
 use serde::{Deserialize, Serialize};
 
-use crate::models::{_entities::{customers, sea_orm_active_enums::CustomerType}};
+use crate::models::{_entities::{customers, sea_orm_active_enums::CustomerType}, users};
 
 pub use super::_entities::customers::{ActiveModel, Model, Entity};
 pub type Customers = Entity;
@@ -31,6 +31,12 @@ pub struct StripeCustomerParams {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ApiResponseModel {}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, DerivePartialModel, FromQueryResult)]
+#[sea_orm(entity = "customers::Entity")]
+pub struct CustomerPid {
+    pub id: Uuid,
+}
 
 #[async_trait::async_trait]
 impl ActiveModelBehavior for ActiveModel {
@@ -74,9 +80,11 @@ impl Model {
         let txn = db.begin().await?;
 
         let customer = ActiveModel {
-            id: ActiveValue::Set(params.user_id),
+            id: ActiveValue::Set(params.user_id.clone()),
             customer_type: ActiveValue::Set(params.customer_type),
-            reference_id: ActiveValue::Set(params.user_id),
+            reference_id: ActiveValue::Set(params.user_id.clone()),
+            user_id: ActiveValue::Set(Some(params.user_id)),
+            plan: ActiveValue::Set(Some("trial".into())),
             status: ActiveValue::Set("active".into()),
             ..Default::default()
         }
@@ -92,4 +100,20 @@ impl Model {
 impl ActiveModel {}
 
 // implement your custom finders, selectors oriented logic here
-impl Entity {}
+impl Entity {
+    pub async fn get_pid(
+        db: &DatabaseConnection,
+        id: &Uuid,
+    ) -> ModelResult<CustomerPid> {
+        let Some(customer) = Entity::find_by_id(*id)
+            .left_join(users::Entity)
+            .into_model::<CustomerPid>()
+            .one(db)
+            .await
+            .expect("customers query error") else {
+                return Err(ModelError::EntityNotFound);
+            };
+        tracing::debug!("pid: {:?}", &customer);
+        Ok(customer)
+    }
+}

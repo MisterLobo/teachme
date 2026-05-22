@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "customers")]
+#[sea_orm(model)]
 #[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
