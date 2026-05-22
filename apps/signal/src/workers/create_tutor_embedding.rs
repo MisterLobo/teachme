@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 
 use fastembed::TextEmbedding;
 use qdrant_client::{Payload, Qdrant, config::QdrantConfig, qdrant::{PointStruct, UpsertPointsBuilder, Vectors}};
@@ -63,11 +63,13 @@ impl BackgroundWorker<WorkerArgs> for Worker {
     /// # Parameters
     /// * `ctx` - The application context containing shared resources
     fn build(ctx: &AppContext) -> Self {
-        // let url = std::env::var("QDRANT_API_URL").unwrap_or_default();
-        let url = "http://localhost:6333";
+        let url = std::env::var("QDRANT_API_URL").unwrap_or_default();
         Self {
             ctx: ctx.clone(),
-            qdrant: Qdrant::from_url("http://localhost:6334").skip_compatibility_check().build().expect("failed to initialize connection"),
+            qdrant: Qdrant::from_url(&url)
+                .skip_compatibility_check()
+                .build()
+                .expect("failed to initialize connection"),
         }
     }
 
@@ -114,7 +116,7 @@ impl BackgroundWorker<WorkerArgs> for Worker {
         let payload: Payload = serde_json::json!(index).try_into().unwrap();
         tracing::debug!("{:#?}", payload);
 
-        let client = &self.qdrant; // Qdrant::from_url("http://localhost:6334").build().expect("failed to initialize connection");
+        let client = &self.qdrant;
 
         let coll = client.list_collections().await.expect("failed to execute list");
 

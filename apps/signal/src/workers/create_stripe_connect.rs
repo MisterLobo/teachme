@@ -11,6 +11,7 @@ pub struct Worker {
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct WorkerArgs {
+    pub pid: Uuid,
     pub params: Option<RegisterParams>,
     pub tutor: Option<models::_entities::tutors::Model>,
 }
@@ -95,6 +96,8 @@ impl BackgroundWorker<WorkerArgs> for Worker {
             .send(&client)
             .await
             .expect("error creating account");
+
+        self.ctx.cache.insert(&format!("{}:stripe-account", &args.pid), &account.id.to_string()).await.expect("Failed to cache data");
 
         tracing::debug!("new account: {:#?}", &account);
         let model = tutors::ActiveModel {

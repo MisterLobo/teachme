@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use loco_rs::prelude::*;
 use stripe_core::customer::{CreateCustomer, SearchCustomer};
 
-use crate::{models::{customers::{self, Customer}, users::UserRole}, services::StripeService};
+use crate::{models::{customers::{self, Customer, StripeCustomerParams}, users::{UserRole, UserType}}, services::StripeService};
 
 pub struct Worker {
     pub ctx: AppContext,
@@ -12,7 +12,8 @@ pub struct Worker {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct WorkerArgs {
     pub row_id: Option<Uuid>,
-    pub customer: Option<Customer>,
+    pub role: UserType,
+    pub customer: Option<StripeCustomerParams>,
 }
 
 #[async_trait]
@@ -55,11 +56,11 @@ impl BackgroundWorker<WorkerArgs> for Worker {
             return Ok(())
         }
         println!("=================CreateStripeCustomer=======================");
-        let c = args.customer.unwrap();
-        let cus = match &c {
+        let cust: StripeCustomerParams = args.customer.unwrap();
+        /* let cus = match &c {
             Customer::Student(s) => s,
             Customer::Parent(p) => p,
-        };
+        }; */
         let keys = self.ctx.shared_store.get::<StripeService>().expect("could not load instance of StripeService");
         let secret = &keys.secret_key.ok_or("invalid".to_string()).expect("Failed to retrieve secret");
 
@@ -68,7 +69,7 @@ impl BackgroundWorker<WorkerArgs> for Worker {
             .build()
             .unwrap();
 
-        let customer = SearchCustomer::new(format!("email~\"{}\"", &cus.email))
+        let customer = SearchCustomer::new(format!("email~\"{}\"", &cust.email))
             .send(&client)
             .await
             .expect("error searching customer");
@@ -77,8 +78,8 @@ impl BackgroundWorker<WorkerArgs> for Worker {
             return Ok(());
         }
         let customer = CreateCustomer::new()
-            .email(cus.email.clone())
-            .name(cus.name.clone())
+            .email(cust.email.clone())
+            .name(cust.name.clone())
             .send(&client)
             .await
             .expect("error creating customer");
