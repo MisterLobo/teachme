@@ -1,0 +1,111 @@
+service:
+  # Maximum size of POST data in a single request in megabytes
+  max_request_size_mb: 32
+
+  # Number of parallel workers used for serving the api. If 0 - equal to the number of available cores.
+  # If missing - Same as storage.max_search_threads
+  max_workers: 0
+
+  # Host to bind the service on
+  host: 0.0.0.0
+
+  # HTTP(S) port to bind the service on
+  http_port: 6333
+
+  # gRPC port to bind the service on.
+  # If `null` - gRPC is disabled. Default: null
+  # Comment to disable gRPC:
+  grpc_port: 6334
+
+  # Enable CORS headers in REST API.
+  # If enabled, browsers would be allowed to query REST endpoints regardless of query origin.
+  # More info: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+  # Default: true
+  enable_cors: true
+
+  # Enable HTTPS for the REST and gRPC API
+  enable_tls: true
+
+  # Check user HTTPS client certificate against CA file specified in tls config
+  verify_https_client_certificate: false
+
+  # Set an api-key.
+  # If set, all requests must include a header with the api-key.
+  # example header: `api-key: <API-KEY>`
+  #
+  # If you enable this you should also enable TLS.
+  # (Either above or via an external service like nginx.)
+  # Sending an api-key over an unencrypted channel is insecure.
+  #
+  # Uncomment to enable.
+  api_key: your_secret_api_key_here
+
+  # Set an api-key for read-only operations.
+  # If set, all requests must include a header with the api-key.
+  # example header: `api-key: <API-KEY>`
+  #
+  # If you enable this you should also enable TLS.
+  # (Either above or via an external service like nginx.)
+  # Sending an api-key over an unencrypted channel is insecure.
+  #
+  # Uncomment to enable.
+  read_only_api_key: your_secret_read_only_api_key_here
+
+  # Uncomment to enable JWT Role Based Access Control (RBAC).
+  # If enabled, you can generate JWT tokens with fine-grained rules for access control.
+  # Use generated token instead of API key.
+  #
+  jwt_rbac: true
+
+  # Hardware reporting adds information to the API responses with a
+  # hint on how many resources were used to execute the request.
+  #
+  # Warning: experimental, this feature is still under development and is not supported yet.
+  #
+  # Uncomment to enable.
+  # hardware_reporting: true
+  #
+  # Uncomment to enable.
+  # Prefix for the names of metrics in the /metrics API.
+  # metrics_prefix: qdrant_
+
+telemetry_disabled: false
+
+# TLS configuration.
+# Required if either service.enable_tls or cluster.p2p.enable_tls is true.
+tls:
+  # Server certificate chain file
+  cert: /certs/localhost.san.pem
+
+  # Server private key file
+  key: /certs/san-key.pem
+
+  # Certificate authority certificate file.
+  # This certificate will be used to validate the certificates
+  # presented by other nodes during inter-cluster communication.
+  #
+  # If verify_https_client_certificate is true, it will verify
+  # HTTPS client certificate
+  #
+  # Required if cluster.p2p.enable_tls is true.
+  ca_cert: /certs/ca.pem
+
+  # TTL in seconds to reload certificate from disk, useful for certificate rotations.
+  # Only works for HTTPS endpoints. Does not support gRPC (and intra-cluster communication).
+  # If `null` - TTL is disabled.
+  cert_ttl: 3600
+
+# Audit logging configuration.
+# When enabled, Qdrant writes structured JSON audit log entries for every
+# access-checked API request.
+#
+# audit:
+#   enabled: false
+#   dir: ./storage/audit
+#   rotation: daily
+#   max_log_files: 7
+#   # If true, use X-Forwarded-For header to determine client IP in audit logs.
+#   # Only enable this when running behind a trusted reverse proxy or load balancer.
+#   # WARNING: Enabling this without a trusted proxy allows clients to spoof their IP.
+#   # Default: false
+#   trust_forwarded_headers: false
