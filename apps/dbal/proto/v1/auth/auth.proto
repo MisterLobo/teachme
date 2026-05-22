@@ -5,7 +5,7 @@ package v1.auth;
 import "google/protobuf/timestamp.proto";
 // import "validate.proto";
 
-option go_package = "v1/auth";
+option go_package = "github.com/misterlobo/teachme/v1/auth";
 
 /*
  * Auth Service
@@ -19,6 +19,10 @@ service AuthService {
   * Signup
   */
   rpc Signup (AuthSignup) returns (SignupResponse);
+  /*
+  * VerifyPassword
+  */
+  rpc VerifyPassword(AuthVerifyPasswordRequest) returns (AuthVerifyPasswordResponse);
 }
 
 /*
@@ -27,6 +31,19 @@ service AuthService {
 message AuthLogin {
   string email = 1;
   string password = 2;
+}
+
+
+message UserKey {
+  message MasterKey {
+    string wrapped_cipher = 1;
+    string iv = 2;
+  }
+  string key_cipher = 1;
+  string public_key = 2;
+  string salt = 3;
+  MasterKey master_key = 4;
+  string key_cipher_salt = 5;
 }
 
 /*
@@ -50,7 +67,8 @@ message AuthSignup {
   optional string first_name = 15;
   optional string last_name = 16;
   optional int32 session_duration = 17;
-  optional float session_price = 18;
+  optional int64 session_price = 18;
+  optional UserKey keys = 19;
 }
 
 /*
@@ -62,12 +80,24 @@ message LoginResponse {
   optional string access_token = 3;
   optional string refresh_token = 4;
   optional string error = 5;
+  optional UserKey keys = 6;
 }
 
 /*
  * SignupResponse
  */
 message SignupResponse {
+  string status = 1;
+  int32 status_code = 2;
+  optional string error = 3;
+  optional string id = 4;
+}
+
+message AuthVerifyPasswordRequest {
+  string password = 1;
+}
+
+message AuthVerifyPasswordResponse {
   string status = 1;
   int32 status_code = 2;
   optional string error = 3;

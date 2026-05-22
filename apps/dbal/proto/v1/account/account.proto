@@ -5,7 +5,7 @@ package v1.account;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "v1/account";
+option go_package = "github.com/misterlobo/teachme/v1/account";
 
 /*
  * AccountService
@@ -20,6 +20,11 @@ service AccountService {
   * Verify
   */
   rpc Verify (AccountVerify) returns (AccountVerifyResponse);
+
+  /*
+  * Retrieve
+  */
+  rpc Retrieve (AccountRetrieve) returns (AccountRetrieveResponse);
 }
 
 /*
@@ -50,4 +55,45 @@ message AccountVerifyResponse {
   optional string verify_link = 2;
   optional string success_link = 3;
   optional string refresh_link = 4;
+}
+
+message AccountRetrieve {
+  optional bool expanded = 1;
+  optional bool account = 2;
+  optional bool customer = 3;
+  optional bool subscription = 4;
+}
+
+message AccountRetrieveResponse {
+  message AccountRetrieveAccountData {
+    optional string id = 1;
+    optional string email = 2;
+    optional string type = 3;
+    optional string status = 4;
+  }
+  oneof account {
+    string account_id = 1;
+    
+    AccountRetrieveAccountData account_data = 2;
+  }
+
+  message AccountRetrieveCustomerData {
+    optional string id = 1;
+    optional string email = 2;
+    optional string name = 3;
+    optional string status = 4;
+  }
+  oneof customer {
+    string customer_id = 3;
+    AccountRetrieveCustomerData customer_data = 4;
+  }
+
+  message AccountRetrieveSubscriptionData {
+    optional string id = 1;
+    optional string status = 2;
+  }
+  oneof subscription {
+    string subscription_id = 5;
+    AccountRetrieveSubscriptionData subscription_data = 6;
+  }
 }

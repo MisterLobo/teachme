@@ -5,7 +5,7 @@ package v1.booking;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 
-option go_package = "v1/booking";
+option go_package = "github.com/misterlobo/teachme/v1/booking";
 
 /*
  * Booking Service
@@ -25,9 +25,20 @@ service BookingService {
  * BookingAppointment
  */
 message BookingCreate {
+  message SessionKey {
+    string credential_id = 1;
+    bytes key_ciphertext = 2;
+    string key_type = 3;
+  }
   string date_time = 1;
   int32 duration = 2;
   string host_id = 3;
+  optional string confirmation_token = 4;
+  optional string payment_method = 5;
+  bytes enc_access_code = 6;
+  repeated SessionKey host_session_keys = 7;
+  repeated SessionKey guest_session_keys = 8;
+  bytes salt = 9;
 }
 
 message BookingCreateResponse {

@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 // import "validate.proto";
 
-option go_package = "v1/profile";
+option go_package = "github.com/misterlobo/teachme/v1/profile";
 
 /*
 * ProfileService provides access to managing user's own profile
@@ -68,6 +68,18 @@ message ProfileData {
   optional string title = 13;
   optional string bio = 14;
   optional string interests = 15;
+  optional string email = 16;
+  optional string phone = 17;
+  optional bool account_verified = 18;
+  optional bool payment_verified = 19;
+  optional bool passkey_enabled = 20;
+  optional float average_rating = 21;
+  optional int64 students = 22;
+  repeated string availability = 23;
+  repeated string specialties = 24;
+  optional bool private_sessions_enabled = 25;
+  optional string avatar_url = 26;
+  optional string banner_url = 27;
 }
 
 /*

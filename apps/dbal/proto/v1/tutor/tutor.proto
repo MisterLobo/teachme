@@ -4,9 +4,8 @@ package v1.tutor;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
-import "apps/dbal/proto/v1/profile/profile.proto";
 
-option go_package = "v1/tutor";
+option go_package = "github.com/misterlobo/teachme/v1/tutor";
 
 /*
  * TutorService
@@ -28,6 +27,14 @@ service TutorService {
   * GetAvailableSlots
   */
   rpc GetAvailableSlots (TutorGetAvailableSlots) returns (TutorResponse);
+  /*
+  * SmartSearch
+  */
+  rpc SmartSearch (TutorSmartSearch) returns (TutorResponse);
+  /*
+  * GetPublicKey
+  */
+  rpc GetPublicKey (TutorGetPublicKeyRequest) returns (TutorGetPublicKeyResponse);
 }
 
 /*
@@ -57,6 +64,23 @@ message TutorSearch {
   optional string pid = 4;
 }
 
+message TutorSmartSearch {
+  optional string category = 1;
+  optional string subject = 2;
+  optional string country = 3;
+  optional string currency = 4;
+  optional string timezone = 5;
+  optional uint32 session_duration = 6;
+  repeated float budget = 7;
+  optional string start_time = 8;
+  optional string locale = 9;
+  optional string topic = 10;
+  optional string code = 11;
+  optional string availability_window = 12;
+  optional string characteristics = 13;
+  optional string skill_level = 14;
+}
+
 /*
  * TutorSearchResponse
  */
@@ -84,10 +108,37 @@ message TutorGetAvailableSlots {
   optional string pid = 4;
 }
 
+/*
+ * ProfileData
+ */
+message TutorProfileData {
+  string id = 1;
+  string name = 2;
+  optional string first_name = 3;
+  optional string last_name = 4;
+  optional string country = 5;
+  optional string currency = 6;
+  optional string language = 7;
+  optional string dob = 8;
+  optional int32 session_duration = 9;
+  optional float session_price = 10;
+  optional string categories = 11;
+  optional string subjects = 12;
+  optional string title = 13;
+  optional string bio = 14;
+  optional string interests = 15;
+  optional float rating = 16;
+  optional string timezone = 17;
+}
+
 message TutorDateTimeSlots {
   string id = 1;
-  optional v1.profile.TutorProfile profile = 2;
-  repeated TutorGetAvailableSlotsResponseSlots slots = 3;
+  repeated TutorGetAvailableSlotsResponseSlots slots = 2;
+  optional TutorProfileData profile = 3;
+}
+
+message TutorTest {
+  string id = 1;
 }
 
 message TutorAvailableSlotsResponse {
@@ -132,4 +183,20 @@ message TutorGetEmbedding {
  */
 message TutorGetEmbeddingResponse {
   repeated float embedding = 1;
+}
+
+message TutorGetPublicKeyRequest {
+  string id = 1;
+}
+
+message TutorGetPublicKeyResponse {
+  string status = 1;
+  int32 status_code = 2;
+  optional string error = 3;
+  message TutorPublicKey {
+    string type = 1;
+    bytes key = 2;
+    optional string credential_id = 3;
+  }
+  repeated TutorPublicKey public_keys = 4;
 }
