@@ -28,6 +28,7 @@ impl MigrationTrait for Migration {
             ],
             &[
                 ("parents", "parent_id"),
+                ("customers", "customer_id"),
             ],
         ).await
     }

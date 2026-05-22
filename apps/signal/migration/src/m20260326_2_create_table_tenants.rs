@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
                 ("plan", ColType::StringNull),
                 ("stripe_customer_id", ColType::StringNull),
                 ("stripe_subscription_id", ColType::StringNull),
-                ("status", ColType::String),
+                ("status", ColType::StringNull),
                 ("trial_ends_at", ColType::TimestampWithTimeZoneNull),
             ],
             &[

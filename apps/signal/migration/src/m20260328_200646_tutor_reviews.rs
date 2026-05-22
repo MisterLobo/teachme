@@ -12,14 +12,15 @@ impl MigrationTrait for Migration {
             
             ("id", ColType::PkUuid),
             
-            ("tutor_id", ColType::Uuid),
+            ("tenant_id", ColType::UuidNull),
+            ("session_id", ColType::UuidNull),
             ("reviewer_id", ColType::Uuid),
             ("reviewer_type", ColType::String),
             ("comments", ColType::TextNull),
             ("rating_stars", ColType::IntegerNull),
             ],
             &[
-                ("tutors", "tutor_id"),
+                ("tutorial_sessions", "session_id"),
             ]
         ).await
     }

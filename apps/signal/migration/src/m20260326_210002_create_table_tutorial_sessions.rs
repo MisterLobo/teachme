@@ -17,6 +17,7 @@ impl MigrationTrait for Migration {
                 ("status", ColType::StringNull),
                 ("progress", ColType::StringNull),
                 ("appointment_id", ColType::Uuid),
+                ("session_id", ColType::StringNull),
                 ("session_link", ColType::StringNull),
                 ("session_length_secs", ColType::IntegerNull),
                 ("tenant_id", ColType::Uuid),
