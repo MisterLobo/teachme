@@ -1,0 +1,10 @@
+[package]
+name = "signal_proto"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+prost = { workspace = true }
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost-types = { workspace = true }

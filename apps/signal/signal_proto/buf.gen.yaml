@@ -1,0 +1,21 @@
+version: v2
+#clean: true
+plugins:
+  - local: protoc-gen-prost
+    out: src/
+    include_imports: true
+    opt:
+      - compile_well_known_types=false
+  - local: protoc-gen-tonic
+    out: src/
+    include_imports: true
+    opt:
+      - compile_well_known_types=false
+  - local: protoc-gen-prost-crate
+    out: .
+    strategy: all
+    opt:
+      - gen_crate
+      - no_features
+inputs:
+  - directory: proto
