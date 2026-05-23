@@ -297,28 +297,6 @@ export default function ProfilePage({ token }: { token?: string }) {
       router.push('/passkeys/wizard')
     } catch (err: any) {}
     return
-    try {
-      const rawKEK = await reconstructKEK()
-    } catch (err: any) {
-      setLoginRequired(true)
-      return
-    }
-    const begin = await passkeyRegisterBegin()
-    toast('requesting. please wait')
-    const { creds } = await passkeyRequestCredentials(begin?.publicKey!)
-    const rawUserKeys = await retrieveKey('user_keys')
-    const userKeys = JSON.parse(Buffer.from(rawUserKeys).toString('utf8'))
-    const recoveryCodes = await deriveKEKFromPasskey(begin?.challenge!, creds, new Uint8Array(32)) as string[]
-    const wrappedAndSigned = await wrapAndSignMasterKey(recoveryCodes)
-    const finish = await passkeyRegisterFinish(begin?.sessionId!, wrappedAndSigned, creds)
-    toast('device registered successfully!')
-    setRecoveryCodes(printableCodes(...recoveryCodes))
-    setCredIds(old => {
-      const newArr = Array.from(old)
-      newArr.push(finish.credentialId)
-      return newArr
-    })
-    setShowCodes(true)
   }
 
   const testOpaqueLogin = async (pin: string) => {
