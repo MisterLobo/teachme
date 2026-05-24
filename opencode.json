@@ -1,0 +1,272 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["CLAUDE.md"],
+  "skills": {
+    "paths": [".opencode/skills"]
+  },
+  "command": {
+    "test-web": {
+      "description": "Run web client tests",
+      "prompt": "Run the web frontend tests with nx",
+      "template": ""
+    },
+    "test-signal": {
+      "description": "Run Rust signal service tests",
+      "prompt": "Run cargo test in apps/signal",
+      "template": ""
+    },
+    "lint-web": {
+      "description": "Lint web client code",
+      "prompt": "Run eslint on apps/web",
+      "template": ""
+    },
+    "lint-signal": {
+      "description": "Lint Rust signal service code",
+      "prompt": "Run cargo check and clippy in apps/signal",
+      "template": ""
+    },
+    "typecheck": {
+      "description": "TypeScript type check",
+      "prompt": "Run tsc --noEmit on the project",
+      "template": ""
+    },
+    "build-web": {
+      "description": "Build web client for production",
+      "prompt": "Build the web app with nx build web",
+      "template": ""
+    }
+  },
+  "agent": {
+    "rust-signal-dev": {
+      "description": "Develop and debug the Rust signal/media service (apps/signal). Specializes in mediasoup, WebRTC signaling, producer/consumer lifecycle, and socket.io message routing.",
+      "mode": "subagent",
+      "team": "rust-signal"
+    },
+    "rust-signal-lead": {
+      "description": "Lead the Rust Signal team (apps/signal). Coordinates WebRTC signaling, mediasoup lifecycle, GStreamer recording, and socket.io message routing.",
+      "mode": "subagent",
+      "team": "rust-signal",
+      "role": "lead"
+    },
+    "rust-qa-engineer": {
+      "description": "QA for Rust Signal team. Enforces memory safety, concurrency correctness, lock discipline, and zero-cost abstraction patterns.",
+      "mode": "subagent",
+      "team": "rust-signal",
+      "role": "qa"
+    },
+    "rust-test-engineer": {
+      "description": "Test for Rust Signal team. Designs testing strategy for mediasoup signaling, room management, and WebRTC lifecycle.",
+      "mode": "subagent",
+      "team": "rust-signal",
+      "role": "test"
+    },
+    "rust-docs-writer": {
+      "description": "Docs for Rust Signal team. Maintains protocol specs, architecture docs, and API references for the media/real-time service.",
+      "mode": "subagent",
+      "team": "rust-signal",
+      "role": "docs"
+    },
+
+    "web-frontend-dev": {
+      "description": "Develop the Next.js web client (apps/web). Specializes in mediasoup-client, WebRTC video rendering, Shadcn UI, and socket.io signaling client.",
+      "mode": "subagent",
+      "team": "web-frontend"
+    },
+    "web-frontend-lead": {
+      "description": "Lead the Web Frontend team (apps/web). Coordinates architecture, roadmap, and delivery of auth UI, booking, tutor discovery, and media session features.",
+      "mode": "subagent",
+      "team": "web-frontend",
+      "role": "lead"
+    },
+    "web-qa-engineer": {
+      "description": "QA for Web Frontend team. Enforces TypeScript strictness, React patterns, accessibility, and code quality for the Next.js client.",
+      "mode": "subagent",
+      "team": "web-frontend",
+      "role": "qa"
+    },
+    "web-test-engineer": {
+      "description": "Test for Web Frontend team. Designs test strategy for the Next.js client including unit, integration, and E2E tests.",
+      "mode": "subagent",
+      "team": "web-frontend",
+      "role": "test"
+    },
+    "web-docs-writer": {
+      "description": "Docs for Web Frontend team. Creates and maintains frontend documentation, component catalogs, and user flow guides.",
+      "mode": "subagent",
+      "team": "web-frontend",
+      "role": "docs"
+    },
+
+    "crypto-e2ee": {
+      "description": "Implement E2EE cryptography: OPAQUE protocol, WebAuthn passkeys, key hierarchy (MK/KEK/DHKE), recovery codes, and WASM crypto modules.",
+      "mode": "subagent",
+      "team": "crypto"
+    },
+    "crypto-lead": {
+      "description": "Lead the E2EE/Cryptography team. Owns key hierarchy, OPAQUE protocol, WebAuthn passkey flows, WASM crypto, and recovery code system.",
+      "mode": "subagent",
+      "team": "crypto",
+      "role": "lead"
+    },
+    "crypto-qa-engineer": {
+      "description": "QA for E2EE/Cryptography team. Enforces cryptographic correctness, timing safety, key management best practices, and protocol security invariants.",
+      "mode": "subagent",
+      "team": "crypto",
+      "role": "qa"
+    },
+    "crypto-test-engineer": {
+      "description": "Test for E2EE/Cryptography team. Designs test strategy for OPAQUE protocol, key derivation, WebAuthn flows, and recovery code system.",
+      "mode": "subagent",
+      "team": "crypto",
+      "role": "test"
+    },
+    "crypto-docs-writer": {
+      "description": "Docs for E2EE/Cryptography team. Maintains E2EE architecture docs, key hierarchy spec, protocol flow docs, and threat model.",
+      "mode": "subagent",
+      "team": "crypto",
+      "role": "docs"
+    },
+
+    "go-backend-dev": {
+      "description": "Develop Go Fiber core backend: business logic, PostgreSQL with RLS, Stripe payments, Asynq jobs, and gRPC service definitions.",
+      "mode": "subagent",
+      "team": "go-backend"
+    },
+    "go-backend-lead": {
+      "description": "Lead the Go Backend team (apps/dbal). Owns core business logic, data authority, API contracts, Stripe integration, and gRPC service design.",
+      "mode": "subagent",
+      "team": "go-backend",
+      "role": "lead"
+    },
+    "go-qa-engineer": {
+      "description": "QA for Go Backend team. Enforces error handling, circuit breaker patterns, idempotency, context propagation, and database access patterns.",
+      "mode": "subagent",
+      "team": "go-backend",
+      "role": "qa"
+    },
+    "go-test-engineer": {
+      "description": "Test for Go Backend team. Designs test strategy for the core backend including unit, integration, and E2E tests for booking/payment flows.",
+      "mode": "subagent",
+      "team": "go-backend",
+      "role": "test"
+    },
+    "go-docs-writer": {
+      "description": "Docs for Go Backend team. Maintains API reference, gRPC proto specs, database schema docs, and integration guides.",
+      "mode": "subagent",
+      "team": "go-backend",
+      "role": "docs"
+    },
+
+    "infra-ops": {
+      "description": "Manage infrastructure: Docker Compose, Vault PKI, TLS/mTLS, NATS JetStream, and observability (OTel, Prometheus, Grafana).",
+      "mode": "subagent",
+      "team": "infra"
+    },
+    "infra-lead": {
+      "description": "Lead the Infrastructure & Platform team. Owns Docker Compose, Vault PKI, TLS/mTLS, NATS, observability, and CI/CD.",
+      "mode": "subagent",
+      "team": "infra",
+      "role": "lead"
+    },
+    "infra-qa-engineer": {
+      "description": "QA for Infrastructure team. Enforces security hardening, configuration best practices, TLS correctness, and disaster recovery readiness.",
+      "mode": "subagent",
+      "team": "infra",
+      "role": "qa"
+    },
+    "infra-test-engineer": {
+      "description": "Test for Infrastructure team. Designs integration tests for infrastructure, disaster recovery, and chaos engineering scenarios.",
+      "mode": "subagent",
+      "team": "infra",
+      "role": "test"
+    },
+    "infra-docs-writer": {
+      "description": "Docs for Infrastructure team. Maintains deployment guides, configuration reference, runbooks, and architecture diagrams.",
+      "mode": "subagent",
+      "team": "infra",
+      "role": "docs"
+    },
+
+    "python-ai-dev": {
+      "description": "Build Python AI service (apps/assistance_ranking). Expert in FastAPI, LangGraph multi-agent workflows, Ollama LLM, Qdrant, Neo4j, NATS JetStream, and async Python.",
+      "mode": "subagent",
+      "team": "python-ai"
+    },
+    "python-ai-lead": {
+      "description": "Lead the Python AI team (apps/assistance_ranking). Coordinates LangGraph workflows, LLM integration, vector/graph search, and NATS event processing.",
+      "mode": "subagent",
+      "team": "python-ai",
+      "role": "lead"
+    },
+    "python-qa-engineer": {
+      "description": "QA for Python AI team. Enforces async correctness, LLM output validation, agent safety guardrails, and gRPC/JWT security.",
+      "mode": "subagent",
+      "team": "python-ai",
+      "role": "qa"
+    },
+    "python-test-engineer": {
+      "description": "Test for Python AI team. Designs test strategy for LangGraph agent workflows, gRPC services, and LLM integration.",
+      "mode": "subagent",
+      "team": "python-ai",
+      "role": "test"
+    },
+    "python-docs-writer": {
+      "description": "Docs for Python AI team. Maintains agent workflow docs, prompt catalog, gRPC API reference, and integration guides.",
+      "mode": "subagent",
+      "team": "python-ai",
+      "role": "docs"
+    },
+
+    "code-review-qa": {
+      "description": "Review code for bugs, correctness, test coverage, and quality across all services. Ensures Rust safety, TypeScript strictness, and Go error handling.",
+      "mode": "subagent"
+    },
+    "head-of-engineering": {
+      "description": "Strategic technical oversight: roadmap prioritization, architecture trade-offs, cross-service coordination, and risk assessment.",
+      "mode": "subagent"
+    },
+    "system-architect": {
+      "description": "Analyze system architecture: service boundaries, data flow, communication patterns, coupling, and scaling bottlenecks.",
+      "mode": "subagent"
+    },
+    "security-auditor": {
+      "description": "Audit security: zero-trust architecture, E2EE correctness, authentication flows, key management, TLS/mTLS enforcement, attack surface.",
+      "mode": "subagent"
+    },
+    "ui-ux-designer": {
+      "description": "Design UI/UX: Shadcn/Radix patterns, responsive layouts, Tailwind CSS v4, accessibility (a11y), form design, media session UI, mobile-first responsive design.",
+      "mode": "subagent"
+    },
+    "frontend-dev": {
+      "description": "Build frontend code across all clients. Specializes in Next.js App Router, React 19 RSC, Tanstack Query, Zustand, React Hook Form + Zod, Shadcn, and NestJS API gateway.",
+      "mode": "subagent",
+      "team": "web-frontend"
+    },
+    "product-manager": {
+      "description": "Product manager: defines product requirements, user stories, acceptance criteria, and customer-facing feature prioritization. Translates business needs into technical specifications.",
+      "mode": "subagent"
+    },
+
+    "flutter-mobile-dev": {
+      "description": "Senior Flutter/Dart engineer for the planned mobile client. Expert in cross-platform UI, WebRTC via flutter-webrtc/mediasoup-client, secure local storage, and reactive state management.",
+      "mode": "subagent",
+      "team": "flutter-mobile"
+    },
+    "dotnet-core-dev": {
+      "description": "Senior .NET/C# engineer for the planned dotnet service. Expert in ASP.NET Core minimal APIs, EF Core, webhook processing, email delivery (SendGrid/SMTP), and background jobs.",
+      "mode": "subagent",
+      "team": "dotnet-core"
+    },
+    "stripe-expert": {
+      "description": "Expert advisor for Stripe integration — Payments, Connect, Subscriptions, Checkout, Elements, Webhooks, idempotency, marketplace payouts, fraud prevention, and compliance.",
+      "mode": "subagent",
+      "team": "cross-cutting"
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "read": "allow",
+    "external_directory": "allow"
+  }
+}
