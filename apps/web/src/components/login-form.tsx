@@ -56,8 +56,8 @@ export function LoginForm({
       if (keys) {
         console.log(keys)
         await Promise.all([
-          insertKey('wrapped_mk_cipher', Uint8Array.fromBase64(keys.masterKey?.wrappedCipher as string, { alphabet: 'base64url' })),
-          insertKey('wrapped_mk_iv', Uint8Array.fromBase64(keys.masterKey?.iv as string, { alphabet: 'base64url' })),
+          insertKey('wrapped_mk_cipher', bytesFromBase64(keys.masterKey?.wrappedCipher as string)),
+          insertKey('wrapped_mk_iv', bytesFromBase64(keys.masterKey?.iv as string)),
           insertKey('user_keys', Uint8Array.from(Buffer.from(JSON.stringify(keys), 'utf8')))
         ])
       }

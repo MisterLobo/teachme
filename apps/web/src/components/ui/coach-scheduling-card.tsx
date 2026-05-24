@@ -3,7 +3,7 @@
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, ChevronDown, Star, SearchIcon } from "lucide-react";
-import { bytesFromBase64, bytesToBase64, cn, createAccessCode, exportKey, exportPublicKey, importKey, importX25519PublicKey, secureRandomBytes } from "@/lib/utils";
+import { bytesFromBase64, bytesToBase64, cn, createAccessCode, deriveSubKey, exportKey, exportPublicKey, importKEKBytes, importKey, importX25519PublicKey, reconstructKEK, secureRandomBytes, unwrapMasterKey } from "@/lib/utils";
 import { addPaymentMethod, confirmBooking, createCheckout, createPayment, getPaymentMethods, getTutorDetails, getTutorPubKeys, getUserKeys, setupPayment } from "@/lib/actions";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
@@ -292,20 +292,34 @@ export function CoachSchedulingCard({
       let sessionSalt = new Uint8Array()
       const encAccessCodes: string[] = []
       const accessCodeBytes= secureRandomBytes()
+      const hostSessionKeys: string[] = []
+      const guestSessionKeys: string[] = []
       for (const pubKey of pubKeys) {
         if (!pubKey.key) continue
         // const skey = Buffer.from(pubKey.key).toString('utf8')
         // console.log(skey)
         if (pubKey.type !== 'device-key') continue
         // if (pubKey.key.byteLength !== 32) continue
-        const pub = Buffer.from(pubKey.key).toBase64({ alphabet: 'base64url' })
+        const pub = Buffer.from(pubKey.key).toString('base64url')
         console.log('pub:', pubKey, pub, )
         // const pk = await exportKey(await importX25519PublicKey(pub))
         console.log('pubKey.key:', pubKey.key)
         // const pk = JSON.parse(dec)
-        const accessCode = await createAccessCode(pub, dhWrappedKey, false, accessCodeBytes, localSalt, new Uint8Array(new TextEncoder().encode('ac-kek-v1')))
+        const accessCode = await createAccessCode(
+          pub,
+          dhWrappedKey,
+          false,
+          accessCodeBytes,
+          localSalt,
+          secureRandomBytes(),
+          32,
+          true,
+        )
+        console.log('accessCode:', accessCode)
         sessionSalt = bytesFromBase64(accessCode?.salt!)
-        encAccessCodes.push(accessCode?.accessCodeCiphertext!)
+        hostSessionKeys.push(`${accessCode?.accessCodeCiphertext}:session-root-key`)
+        guestSessionKeys.push(`${accessCode?.localCiphertext}:session-root-key`)
+        encAccessCodes.push(...[accessCode?.accessCodeCiphertext!, accessCode.localCiphertext!])
       }
       console.log(encAccessCodes)
 
@@ -315,11 +329,19 @@ export function CoachSchedulingCard({
         dateTime as string,
         timezone,
         encAccessCodes,
+        hostSessionKeys,
+        guestSessionKeys,
         bytesToBase64(sessionSalt),
         record.sessionDuration,
       )
       console.log(confirmed)
       if (confirmed) {
+        const rebuilt = await reconstructKEK()
+        const rKEK = await importKEKBytes(rebuilt)
+        const unwrapped = await unwrapMasterKey(bytesFromBase64(userKeys?.master_key?.wrapped_cipher!), bytesFromBase64(userKeys?.master_key?.iv!), rKEK)
+        const subKEK = await deriveSubKey(unwrapped, 'ac-enc-key-v1', ['wrapKey', 'unwrapKey'])
+        
+
         toast('Your booking has been confirmed!')
         setShowConfirmationView(false);
         setSelectedTimeSlot(null);
