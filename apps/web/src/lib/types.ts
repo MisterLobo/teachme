@@ -157,11 +157,24 @@ export interface ServerProducerAdded {
   action: 'ProducerAdded',
   participantId: ParticipantId,
   producerId: ProducerId,
+  username?: string,
+  source?: string,
 }
 export interface ServerProducerRemoved {
   action: 'ProducerRemoved',
   participantId: ParticipantId,
   producerId: ProducerId,
+  source?: string,
+}
+export interface ServerProducerPaused {
+  action: 'ProducerPaused',
+  participantId: ParticipantId,
+  kind: MediaKind,
+}
+export interface ServerProducerResumed {
+  action: 'ProducerResumed',
+  participantId: ParticipantId,
+  kind: MediaKind,
 }
 export interface ServerConnectedProducerTransport {
   action: 'ConnectedProducerTransport',
@@ -185,6 +198,8 @@ export type ServerMessage =
   ServerInit |
   ServerProducerAdded |
   ServerProducerRemoved |
+  ServerProducerPaused |
+  ServerProducerResumed |
   ServerConnectedProducerTransport |
   ServerProduced |
   ServerConnectedConsumerTransport |
@@ -206,6 +221,7 @@ export interface ClientProduce {
   action: 'Produce',
   kind: MediaKind,
   rtpParameters: RtpParameters,
+  source?: string,
 }
 export interface ClientConsume {
   action: 'Consume',
@@ -215,66 +231,47 @@ export interface ClientConsumerResume {
   action: 'ConsumerResume',
   id: ConsumerId,
 }
+export interface ClientPauseProducer {
+  action: 'PauseProducer',
+  kind: MediaKind,
+}
+export interface ClientResumeProducer {
+  action: 'ResumeProducer',
+  kind: MediaKind,
+}
+export interface ClientCloseProducer {
+  action: 'CloseProducer',
+  producerId: ProducerId,
+}
 
-export type ClientMessage = ClientInit | ClientConnectedProducerTransport | ClientProduce | ClientConnectConsumerTransport | ClientConsume | ClientConsumerResume
+export type ClientMessage = ClientInit | ClientConnectedProducerTransport | ClientProduce | ClientConnectConsumerTransport | ClientConsume | ClientConsumerResume | ClientPauseProducer | ClientResumeProducer | ClientCloseProducer
 
 export class Participant {
-  private readonly figure: HTMLElement
-  private readonly preview: HTMLVideoElement
-  private readonly mediaStream = new MediaStream()
+  readonly mediaStream = new MediaStream()
   constructor(
     public readonly id: ParticipantId,
     public local: boolean,
-  ) {
-    const container = document.querySelector('#container')
-
-    this.figure = document.createElement('figure')
-    this.figure.className = 'flex relative p-4 w-full h-auto items-center justify-center'
-
-    this.preview = document.createElement('video')
-    this.preview.className = 'w-full h-full bg-amber-950 rounded-4xl'
-
-    this.preview.muted = true
-    this.preview.controls = false
-
-    this.preview.onloadedmetadata = () => {
-      this.preview.play()
-    }
-
-    const figcaption = document.createElement('figcaption')
-    figcaption.innerText = `Participant ${id}`
-    figcaption.className = 'absolute flex w-full items-center justify-center'
-
-    this.figure.append(this.preview, figcaption)
-
-    container?.append(this.figure)
-  }
+    public name?: string,
+  ) {}
 
   addTrack(track: MediaStreamTrack): void {
     this.mediaStream.addTrack(track)
-    this.preview.srcObject = this.mediaStream
   }
 
   deleteTrack(track: MediaStreamTrack): void {
     this.mediaStream.removeTrack(track)
-    this.preview.srcObject = this.mediaStream
   }
 
   hasTracks(): boolean {
     return this.mediaStream.getTracks().length > 0
-  }
-
-  destroy(): void {
-    this.preview.srcObject = null
-    this.figure.remove()
   }
 }
 export class Participants {
   private participants = new Map<ParticipantId, Participant>
   private producerIdToTrack = new Map<ProducerId, { track: MediaStreamTrack, local: boolean }>()
 
-  list(): { id: ParticipantId, local: boolean }[] {
-    return this.participants.values().map((v) => ({ id: v.id, local: v.local })).toArray()
+  list(): Participant[] {
+    return [...this.participants.values()]
   }
 
   addTrack(
@@ -282,9 +279,10 @@ export class Participants {
     producerId: ProducerId,
     track: MediaStreamTrack,
     local = true,
+    name?: string,
   ): void {
     this.producerIdToTrack.set(producerId, { track, local })
-    this.getOrCreateParticipant(participantId).addTrack(track)
+    this.getOrCreateParticipant(participantId, local, name).addTrack(track)
   }
 
   deleteTrack(participantId: ParticipantId, producerId: ProducerId) {
@@ -296,19 +294,25 @@ export class Participants {
       participant.deleteTrack(track.track)
       if (!participant.hasTracks()) {
         this.participants.delete(participantId)
-        participant.destroy()
       }
     }
   }
 
-  getOrCreateParticipant(id: ParticipantId, local = false): Participant {
+  getOrCreateParticipant(id: ParticipantId, local = false, name?: string): Participant {
     let participant = this.participants.get(id)
 
     if (!participant) {
-      participant = new Participant(id, local)
+      participant = new Participant(id, local, name)
       this.participants.set(id, participant)
+    } else if (name && !participant.name) {
+      participant.name = name
     }
 
     return participant
+  }
+
+  clear(): void {
+    this.participants.clear()
+    this.producerIdToTrack.clear()
   }
 }

@@ -145,7 +145,18 @@ export async function getTutorDetails(id: string, tz: string, dateTime: string, 
   return tutor?.data
 }
 
-export async function confirmBooking(pmId: string, tutorId: string, dateTime: string, timezone: string, encAccessCodes: string[], salt: string, duration = 30, confirmationToken?: string) {
+export async function confirmBooking(
+  pmId: string,
+  tutorId: string,
+  dateTime: string,
+  timezone: string,
+  encAccessCodes: string[],
+  hostSessionKeys: string[],
+  guestSessionKeys: string[],
+  salt: string,
+  duration = 30,
+  confirmationToken?: string,
+) {
   const jar = await cookies()
   const token = jar.get('access-token')?.value
   const response = await fetch(`${process.env.API_GATEWAY_URL}/appointments/booking`, {
@@ -162,6 +173,8 @@ export async function confirmBooking(pmId: string, tutorId: string, dateTime: st
       duration,
       confirmationToken,
       encAccessCodes,
+      hostSessionKeys,
+      guestSessionKeys,
       salt,
     })
   })

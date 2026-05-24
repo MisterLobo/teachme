@@ -109,12 +109,12 @@ export async function generateDHKeys(kek: CryptoKey) {
     'X25519',
     true,
     ['deriveBits', 'deriveKey'],
-  )
+  ) as CryptoKeyPair
   const edKeyPair = await crypto.subtle.generateKey(
     'Ed25519',
     true,
     ['sign', 'verify'],
-  )
+  ) as CryptoKeyPair
   const xPublicKey = await exportKey(xKeyPair.publicKey)
   const edPublicKey = await exportKey(edKeyPair.publicKey)
   const edNonce = secureRandomBytes(12)
@@ -211,7 +211,7 @@ export async function opaqueRewrapMasterKey(password: string, salt: Uint8Array, 
   const wrapped = await wrapMasterKey(unwrapped, kek)
   const exported = await exportKEK(kek)
   await splitAndStoreKEK(
-    Uint8Array.fromBase64(exported, { alphabet: 'base64url' }),
+    Uint8Array.from(bytesFromBase64(exported)),
     'opqkek_part_a',
     'opqkek_part_b',
   )
@@ -367,7 +367,7 @@ export async function ecdhExchangeKeys(
       },
       true,
       ['deriveBits', 'deriveKey'],
-    )
+    ) as CryptoKeyPair
     privateKey = keyPair.privateKey
     publicKey = await exportKey(keyPair.publicKey)
   }
@@ -908,7 +908,7 @@ export async function createUserKeys(password: string) {
   const dhKeyPair = wrappedMasterKey.dhKeys
 
   const pubKey = dhKeyPair?.derivation.publicKey
-  const dhkp = Buffer.from(JSON.stringify(dhKeyPair), 'utf8').toBase64({ alphabet: 'base64url' })
+  const dhkp = bytesToBase64(Buffer.from(JSON.stringify(dhKeyPair), 'utf8'))
 
   const b1 = bytesFromBase64(dhKeyPair?.derivation.nonce!)
   const b2 = bytesFromBase64(dhKeyPair?.derivation.privateKey!)
@@ -1077,7 +1077,14 @@ type ECDHExchangedKeys = Awaited<ReturnType<typeof ecdhExchangeKeys>>
  * @param length size of salt in bytes. OPTIONAL: default is 32
  * @returns the ciphertext or plaintext
  */
-export async function createAccessCode(otherPublicKey: string, wrappedKeyBytes?: Uint8Array, decrypt = false, encAccessCodeBytes?: Uint8Array, localSalt = secureRandomBytes(), remoteSalt = secureRandomBytes(), length = 32, opaque = false) {
+export async function createAccessCode(otherPublicKey: string, wrappedKeyBytes?: Uint8Array, decrypt = false, encAccessCodeBytes?: Uint8Array, localSalt = secureRandomBytes(), remoteSalt = secureRandomBytes(), length = 32, createLocal = false): Promise<{
+    plaintext?: string;
+    publicKey?: string,
+    wrappedPrivateKey?: string,
+    accessCodeCiphertext?: string,
+    salt?: string,
+    localCiphertext?: string,
+}> {
   if (decrypt && !encAccessCodeBytes) {
     throw new Error('missing cipher bytes')
   }
@@ -1086,6 +1093,23 @@ export async function createAccessCode(otherPublicKey: string, wrappedKeyBytes?:
 
   const otherPubKeyBytes = bytesFromBase64(otherPublicKey)
   const encAccessCode: ECDHExchangedKeys = await ecdhExchangeKeys(otherPubKeyBytes, accessCodeBytes, 'access-code', { localSalt, remoteSalt, wrappedKeyBytes, decrypt })
+
+  if (createLocal) {
+    const rebuilt = await reconstructKEK()
+    const mKEK = await importKEKBytes(rebuilt)
+    const userKeys = await getUserKeys() as UserKeys
+    const unwrapped = await unwrapMasterKey(bytesFromBase64(userKeys.master_key?.wrapped_cipher!), bytesFromBase64(userKeys.master_key?.iv!), mKEK)
+    const acKEK = await deriveSubKey(unwrapped, 'ac-secret-v1', ['encrypt', 'decrypt'])
+    const acNonce = secureRandomBytes(12)
+    const encAC = await ecdhEncryptData(accessCodeBytes, acKEK, acNonce, 'access-code')
+    const cipherbytes = new Uint8Array(acNonce.byteLength + encAC.byteLength)
+    cipherbytes.set(acNonce, 0)
+    cipherbytes.set(encAC, acNonce.byteLength)
+    return {
+      ...encAccessCode,
+      localCiphertext: bytesToBase64(cipherbytes),
+    }
+  }
 
   return encAccessCode
 }
@@ -1350,7 +1374,7 @@ export async function generateRootKeys(format: string, num = 10, keyUsages: KeyU
 }
 
 export function generateHexRootKey(): string {
-  return crypto.getRandomValues(new Uint8Array(16)).toHex()
+  return Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('hex')
 }
 
 export function generateHexRootKeys(num = 10): string[] {
@@ -1545,11 +1569,11 @@ export function generateSecureBytes(length = 32, encoded = true): string | Uint8
 }
 
 export function bytesToBase64(bytes: Uint8Array, alphabet: 'base64' | 'base64url' = 'base64url'): string {
-  return bytes.toBase64({ alphabet })
+  return Buffer.from(bytes).toString(alphabet)
 }
 
 export function bytesFromBase64(b64: string, alphabet: 'base64' | 'base64url' = 'base64url') {
-  return Uint8Array.fromBase64(b64, { alphabet })
+  return Uint8Array.from(Buffer.from(b64, alphabet))
 }
 
 export async function beforeLogout() {
