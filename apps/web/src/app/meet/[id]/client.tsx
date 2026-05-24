@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import {
   Device,
@@ -10,11 +10,13 @@ import { AppointmentId, ClientMessage, ConsumerId, Participant, ParticipantId, P
 import { ConsumerOptions, Transport } from 'mediasoup-client/types'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Controller, SubmitHandler, useForm } from 'react-hook-form'
-import { AlertTriangleIcon, Camera, CameraOff, CameraOffIcon, CheckIcon, ChevronDownIcon, CopyIcon, Icon, Mic, MicOff, Phone, ScreenShare, ShareIcon, TrashIcon, UserRoundXIcon, VideoIcon, VideoOff, VideoOffIcon, VolumeOffIcon } from 'lucide-react'
+import { Controller, SubmitHandler, useForm, useWatch } from 'react-hook-form'
+import { Camera, CameraOff, ChevronDownIcon, Mic, MicOff, MonitorUp, Phone, ScreenShare } from 'lucide-react'
 import { ButtonGroup } from '@/components/ui/button-group'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
 
 type FormSchema = {
   username: string,
@@ -32,6 +34,7 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
       passcode: '',
     },
   })
+  const watchedUsername = useWatch({ control, name: 'username' })
   const [loc, setLoc] = useState<string>()
   const [status, setStatus] = useState<'idle' | 'waiting' | 'ready' | 'disconnected'>('idle')
   const [wsUrl, setWsUrl] = useState<URL>()
@@ -39,11 +42,21 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
   const figureRef = useRef<HTMLElement>(null)
   const figCaptionRef = useRef<HTMLElement>(null)
   const previewRef = useRef<HTMLVideoElement>(null)
-  const [participants, setParticipants] = useState<Participants>(new Participants())
+  const joinPayloadRef = useRef<FormSchema | null>(null)
+  const initStartedRef = useRef(false)
+  const produceSourceRef = useRef<string | undefined>(undefined)
+  const producerTransportRef = useRef<any>(undefined)
+  const screenShareProducersRef = useRef<{ id: string; close: () => void }[]>([])
+  const screenShareStreamsRef = useRef<Map<ParticipantId, MediaStream>>(new Map())
+  const [isSharingScreen, setIsSharingScreen] = useState(false)
+  const [screenShareParticipantId, setScreenShareParticipantId] = useState<ParticipantId | undefined>(undefined)
+  const [participants] = useState<Participants>(new Participants())
+  const [, forceUpdate] = useReducer(x => x + 1, 0)
   const [producerIdToTrack, _] = useState<Map<ProducerId, MediaStreamTrack>>(new Map())
   const [mediaStream, setMediaStream] = useState<MediaStream>()
   const [hasVideo, setHasVideo] = useState(false)
   const [hasAudio, setHasAudio] = useState(false)
+  const [pausedProducers, setPausedProducers] = useState<Set<string>>(new Set())
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([])
   const [videoEnabled, setVideoEnabled] = useState(true)
@@ -65,30 +78,23 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
 
   const sendMessage = useCallback((message: ClientMessage) => {
     if (!socket) return
+    console.log('sending message:', message)
     socket.emit('clientmessage', message)
   }, [socket])
 
   const onSubmit: SubmitHandler<FormSchema> = useCallback((data) => {
-    console.log(data, appointmentId)
     if (!socket) {
       console.error('socket is not initialized')
       return
     }
+    joinPayloadRef.current = data
     setStatus('ready')
-    const payload = {
-      ...data,
-      roomId,
-      apptId: appointmentId as AppointmentId,
-    }
-    console.log('payload:', payload)
-    socket.emit('join', payload)
   }, [socket])
 
   useEffect(() => {
     if (!socket) return
     socket.on('connect', () => {
       console.log('connection established')
-      socket.emit('join')
     })
     socket.on('connect_error', (err) => {
       console.log('connection failed:', err)
@@ -102,6 +108,15 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
   }, [socket])
 
   useEffect(() => {
+    if (mediaStream) {
+      const preview = previewRef.current as HTMLVideoElement
+      if (preview && !preview.srcObject) {
+        preview.onloadedmetadata = () => preview.play().catch(() => {})
+        preview.srcObject = mediaStream
+      }
+      setLoc(location.href)
+      return
+    }
     (async () => {
       console.log('querying mediaStream...')
       const hasAudio = (await navigator.mediaDevices.enumerateDevices()).some(d => d.kind === 'audioinput')
@@ -120,29 +135,21 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
         console.warn('video input device not found')
       }
       setHasVideo(hasVideo)
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: hasAudio,
         video: hasVideo ? {
-          width: {
-            ideal: 1280,
-          },
-          height: {
-            ideal: 720,
-          },
-          frameRate: {
-            ideal: 60,
-          },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 60 },
         } : false,
       })
       const preview = previewRef.current as HTMLVideoElement
-      preview.onloadedmetadata = () => {
-        preview.play()
-      }
-      preview.srcObject = mediaStream
-      setMediaStream(mediaStream)
+      preview.onloadedmetadata = () => preview.play().catch(() => {})
+      preview.srcObject = stream
+      setMediaStream(stream)
     })()
     setLoc(location.href)
-  }, [])
+  }, [previewRef.current, mediaStream])
 
   useEffect(() => {
     console.log('loc:', loc)
@@ -201,27 +208,39 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
   }, []) */
 
   const init = useCallback(async () => {
-    console.log('socket init:', !!socket)
+    console.log('=== init called ===', { hasSocket: !!socket, hasPreview: !!previewRef.current, hasStream: !!mediaStream, joinPayload: joinPayloadRef.current?.username })
     if (!socket || !previewRef.current) {
-      console.log('socket not init:', previewRef.current)
+      console.log('init: socket or preview not ready', { hasSocket: !!socket, hasPreview: !!previewRef.current })
       return
     }
     if (!mediaStream) {
-      console.error('mediastream not found')
+      console.error('init: mediaStream not found')
       return
     }
+
+    initStartedRef.current = true
+    socket.off('login')
+    socket.off('welcome')
+    socket.off('connect')
+    socket.off('connect_error')
+    socket.off('servermessage')
+    socket.off('error')
+    socket.off('disconnect')
+    socket.offAny()
+
     const preview = previewRef.current as HTMLVideoElement
     preview.onloadedmetadata = () => {
-      preview.play()
+      preview.play().catch(() => {})
     }
     const device = new Device()
-    // const participants = new Participants()
     let producerTransport: Transport | undefined
     let consumerTransport: Transport | undefined
     let sequentialMessages: Promise<void> = Promise.resolve()
     const waitingForResponse: Map<ServerMessage['action'], Function> = new Map()
     let consuming = false
     const producerQueue: ServerProducerAdded[] = []
+    const clientConsumers = new Map<string, { consumer: any, producerId: ProducerId, participantId: ParticipantId }>()
+    let consumerInitStarted = false
     const messageReceived = async (message: ServerMessage) => {
       switch (message.action) {
         case 'Init': {
@@ -232,22 +251,25 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
             history.pushState({}, '', url.toString())
           }
 
+          console.log('loading device with router RTP capabilities')
           await device.load({
             routerRtpCapabilities: message.routerRtpCapabilities,
           })
-          console.log('device loaded successfully')
+          console.log('device loaded, recvRtpCapabilities:', device.recvRtpCapabilities)
 
           sendMessage({
             action: 'Init',
             rtpCapabilities: device.recvRtpCapabilities,
           })
+          console.log('sent Init with recvRtpCapabilities')
 
           producerTransport = device.createSendTransport(message.producerTransportOptions)
+          producerTransportRef.current = producerTransport
           console.log('send transport created:', producerTransport)
 
           producerTransport
             .on('connect', ({ dtlsParameters }, success) => {
-              console.log('connected:', dtlsParameters)
+              console.log('producer transport connect:', dtlsParameters)
               sendMessage({
                 action: 'ConnectProducerTransport',
                 dtlsParameters,
@@ -259,18 +281,21 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
               })
             })
             .on('produce', ({ kind, rtpParameters }, success) => {
+              console.log('produce event:', kind, 'source:', produceSourceRef.current)
               sendMessage({
                 action: 'Produce',
                 kind,
                 rtpParameters,
+                source: produceSourceRef.current,
               })
 
               waitingForResponse.set('Produced', ({ id }: { id: string }) => {
+                console.log('Produced response:', id)
                 success({ id })
               })
             })
             .on('connectionstatechange', (state) => {
-              console.log('producer state:', state)
+              console.log('producer transport state:', state)
             })
 
           // console.log('querying mediaStream...')
@@ -297,23 +322,11 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
             } : false,
           }) */
 
-          preview.srcObject = mediaStream
-
-          for (const track of mediaStream.getTracks()) {
-            const producer = await producerTransport.produce({ track })
-
-            console.log(`${track.kind} producer created:`, producer)
-          }
-
           consumerTransport = device.createRecvTransport(message.consumerTransportOptions)
-          console.log('consumer transport with opts:', consumerTransport, message.consumerTransportOptions)
-          console.log(consumerTransport.connectionState)
+          console.log('consumer transport created:', consumerTransport.id, consumerTransport.connectionState)
           consumerTransport
-            .on('connectionstatechange', state => {
-              console.log('consumer connection:', state)
-            })
             .on('connect', ({ dtlsParameters }, success) => {
-              console.log('consumer connected:', dtlsParameters)
+              console.log('consumer transport connect event')
 
               waitingForResponse.set('ConnectedConsumerTransport', () => {
                 success()
@@ -324,10 +337,13 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
                 action: 'ConnectConsumerTransport',
                 dtlsParameters,
               })
-              console.log('waiting for event response from server: ConnectConsumerTransport')
+              console.log('waiting for ConnectedConsumerTransport response')
             })
             .on('connectionstatechange', (state) => {
-              console.log('consumer state:', state)
+              console.log('consumer transport state:', state)
+              if (state === 'failed' || state === 'disconnected') {
+                console.error('consumer transport failed/disconnected')
+              }
             })
             .on('icecandidateerror', (error) => {
               console.log('ICE candidate error:', error)
@@ -335,51 +351,154 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
             .on('icegatheringstatechange', (state) => {
               console.log('ICE gathering state:', state)
             })
+
+          preview.srcObject = mediaStream
+
+          console.log('starting production of local tracks:', mediaStream.getTracks().length)
+          for (const track of mediaStream.getTracks()) {
+            produceSourceRef.current = track.kind === 'video' ? 'camera' : undefined
+            console.log(`producing ${track.kind} track (source: ${produceSourceRef.current})`)
+            const producer = await producerTransport.produce({ track })
+            console.log(`${track.kind} producer created:`, producer.id)
+          }
+          produceSourceRef.current = undefined
+          console.log('finished producing local tracks')
           break
         }
         case 'ProducerAdded': {
+          if (message.source === 'screen') {
+            console.log('screen share producer added:', message.participantId)
+            setScreenShareParticipantId(message.participantId)
+          }
+          console.log('ProducerAdded queued:', message.producerId, 'queue length:', producerQueue.length + 1)
           producerQueue.push(message)
           if (consuming) {
+            console.log('already consuming, waiting in queue')
             return
           }
           consuming = true
-          /* sendMessage({
-            action: 'Consume',
-            producerId: message.producerId,
-          }) */
+          console.log('starting consumer chain')
 
-          while (producerQueue.length > 0) {
+          const consumeNext = () => {
             const producer = producerQueue.shift()
-            if (!producer) break
+            if (!producer) {
+              consuming = false
+              console.log('consumer chain complete')
+              return
+            }
+            const { participantId, producerId, username, source } = producer
+            console.log(`consuming producer ${producerId} for participant ${participantId} (source: ${source || 'camera'})`)
+            let timedOut = false
+            const consumeTimeout = setTimeout(() => {
+              timedOut = true
+              console.warn(`Consume timeout (15s) for producer ${producerId}, skipping`)
+              waitingForResponse.delete('Consumed')
+              forceUpdate()
+              consumeNext()
+            }, 15000)
             sendMessage({
               action: 'Consume',
-              producerId: message.producerId,
+              producerId,
+            })
+            waitingForResponse.set('Consumed', async (consumerOptions: ServerConsumed) => {
+              clearTimeout(consumeTimeout)
+              if (timedOut) {
+                console.warn(`Consumed response arrived after timeout for producer ${producerId}, ignoring`)
+                return
+              }
+              if (!consumerTransport) {
+                console.error('consumerTransport not ready, re-queuing')
+                producerQueue.unshift(producer)
+                consuming = false
+                return
+              }
+              try {
+                console.log(`Consumed response for producer ${producerId}:`, consumerOptions)
+                const consumer = await consumerTransport.consume({
+                  id: consumerOptions.id,
+                  producerId: consumerOptions.producerId,
+                  rtpParameters: consumerOptions.rtpParameters,
+                  kind: consumerOptions.kind,
+                })
+                const id = consumer.id
+                const track = consumer.track
+                const kind = consumer.kind
+
+                console.log(`${kind} consumer created: ${id}, track:`, track?.id, track?.kind, track?.enabled, track?.readyState)
+
+                if (!track) {
+                  console.error(`No track on consumer ${id} for producer ${producerId} - consumer paused state may prevent track creation`)
+                }
+
+                clientConsumers.set(id, { consumer, producerId, participantId })
+
+                sendMessage({
+                  action: 'ConsumerResume',
+                  id: id as ConsumerId,
+                })
+
+                if (source === 'screen') {
+                  let stream = screenShareStreamsRef.current.get(participantId)
+                  if (!stream) {
+                    stream = new MediaStream()
+                    screenShareStreamsRef.current.set(participantId, stream)
+                  }
+                  if (track) {
+                    stream.addTrack(track)
+                    console.log(`screen track added to stream for ${participantId}`)
+                  }
+                } else {
+                  if (track) {
+                    participants.addTrack(participantId, producerId, track, false, username)
+                    console.log(`track added for participant ${participantId}: kind=${kind} trackId=${track.id}`)
+                  } else {
+                    console.error(`No track available from consumer ${id} for producer ${producerId}`)
+                  }
+                }
+              } catch (err) {
+                console.error(`Failed to consume producer ${producerId}:`, err)
+              }
+              console.log(`participant ${participantId} now has ${participants.getOrCreateParticipant(participantId).mediaStream.getTracks().length} tracks`)
+              forceUpdate()
+              consumeNext()
             })
           }
-          waitingForResponse.set('Consumed', async (consumerOptions: ServerConsumed) => {
-            console.log('consuming with opts:', consumerOptions)
-            const ct = consumerTransport as Transport
-            const { id, track, kind } = await ct.consume({
-              id: consumerOptions.id,
-              producerId: consumerOptions.producerId,
-              rtpParameters: consumerOptions.rtpParameters,
-              kind: consumerOptions.kind,
-            })
-
-            console.log(`${kind} consumer created:`, id)
-
-            sendMessage({
-              action: 'ConsumerResume',
-              id: id as ConsumerId,
-            })
-
-            participants.addTrack(message.participantId, message.producerId, track)
-            consuming = false
-          })
+          consumeNext()
           break
         }
         case 'ProducerRemoved': {
-          participants.deleteTrack(message.participantId, message.producerId)
+          console.log('ProducerRemoved:', message.participantId, message.producerId, 'source:', message.source)
+          if (message.source === 'screen') {
+            screenShareStreamsRef.current.delete(message.participantId)
+            setScreenShareParticipantId(undefined)
+          } else {
+            participants.deleteTrack(message.participantId, message.producerId)
+          }
+          for (const [consumerId, entry] of clientConsumers) {
+            if (entry.producerId === message.producerId) {
+              console.log(`cleaning up consumer ${consumerId} for removed producer ${message.producerId}`)
+              clientConsumers.delete(consumerId)
+            }
+          }
+          forceUpdate()
+          break
+        }
+        case 'ProducerPaused': {
+          setPausedProducers(prev => {
+            const next = new Set(prev)
+            next.add(message.participantId + ':' + message.kind)
+            return next
+          })
+          forceUpdate()
+          break
+        }
+        case 'ProducerResumed': {
+          setPausedProducers(prev => {
+            const next = new Set(prev)
+            next.delete(message.participantId + ':' + message.kind)
+            return next
+          })
+          forceUpdate()
           break
         }
         case 'Produced':
@@ -407,19 +526,33 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
     socket.on('connect_error', (err) => {
       console.log('connection failed:', err)
     })
+    let seqCounter = 0
     socket.on('servermessage', async (message: ServerMessage) => {
-      console.log('server message received:', message)
-      const cb = waitingForResponse.get(message.action)
-      console.log('cb found:', message.action, !!cb)
+      const msgAction = message.action
+      console.log(`[servermessage #${seqCounter}] action=${msgAction}`, message)
+      const cb = waitingForResponse.get(msgAction)
 
       if (cb) {
-        waitingForResponse.delete(message.action)
-        await cb(message)
+        console.log(`[servermessage] found waitingForResponse for ${msgAction}, resolving...`)
+        waitingForResponse.delete(msgAction)
+        try {
+          await cb(message)
+          console.log(`[servermessage] waitingForResponse resolved for ${msgAction}`)
+        } catch (err) {
+          console.error(`[servermessage] waitingForResponse failed for ${msgAction}:`, err)
+        }
       } else {
-        sequentialMessages = sequentialMessages.then(() => {
-          messageReceived(message)
+        console.log(`[servermessage] no waitingForResponse for ${msgAction}, queueing sequentially`)
+        const currentSeq = seqCounter++
+        sequentialMessages = sequentialMessages.then(async () => {
+          console.log(`[servermessage] processing queued ${msgAction} (#${currentSeq})`)
+          try {
+            await messageReceived(message)
+            console.log(`[servermessage] done processing queued ${msgAction} (#${currentSeq})`)
+          } catch (err) {
+            console.error(`[servermessage] error processing ${msgAction}:`, err)
+          }
         })
-        .catch(console.error)
       }
     })
     socket.on('error', console.error)
@@ -431,18 +564,99 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
       console.log('event:', args)
     })
     console.log('socket now listening for events')
-  }, [previewRef, socket, mediaStream])
+
+    const joinPayload = joinPayloadRef.current
+    if (joinPayload) {
+      console.log('emitting join with payload:', { ...joinPayload, roomId, apptId: appointmentId })
+      socket.emit('join', {
+        ...joinPayload,
+        roomId,
+        apptId: appointmentId as AppointmentId,
+      })
+    } else {
+      console.error('init: join payload not found!')
+    }
+  }, [previewRef, socket, mediaStream, joinPayloadRef.current])
 
   const toggleVideo = useCallback((enabled: boolean) => {
     if (!videoTrack) return
     videoTrack.enabled = enabled
     setVideoEnabled(enabled)
-  }, [videoTrack])
+    sendMessage({ action: enabled ? 'ResumeProducer' : 'PauseProducer', kind: 'video' })
+  }, [videoTrack, sendMessage])
   const toggleAudio = useCallback((enabled: boolean) => {
     if (!audioTrack) return
     audioTrack.enabled = enabled
     setAudioEnabled(enabled)
-  }, [audioTrack])
+    sendMessage({ action: enabled ? 'ResumeProducer' : 'PauseProducer', kind: 'audio' })
+  }, [audioTrack, sendMessage])
+  const toggleScreenShare = useCallback(async () => {
+    const pt = producerTransportRef.current
+    if (!pt) {
+      console.warn('toggleScreenShare: producer transport not ready')
+      return
+    }
+    if (isSharingScreen) {
+      console.log('stopping screen share:', screenShareProducersRef.current.length, 'screenshare producers')
+      for (const p of screenShareProducersRef.current) {
+        sendMessage({ action: 'CloseProducer', producerId: p.id as ProducerId })
+        p.close()
+      }
+      screenShareProducersRef.current = []
+      setIsSharingScreen(false)
+      return
+    }
+    try {
+      console.log('starting screen share...')
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+      console.log('screen share stream obtained, tracks:', stream.getTracks().length)
+      setIsSharingScreen(true)
+      const producers: { id: string; close: () => void }[] = []
+      let cleaningUp = false
+      const stopScreenShare = () => {
+        if (cleaningUp) return
+        cleaningUp = true
+        console.log('screen share stopped (browser UI or track ended)')
+        for (const p of producers) {
+          sendMessage({ action: 'CloseProducer', producerId: p.id as ProducerId })
+          p.close()
+        }
+        setIsSharingScreen(false)
+        screenShareProducersRef.current = []
+      }
+      stream.addEventListener('inactive', stopScreenShare)
+      for (const track of stream.getTracks()) {
+        track.addEventListener('ended', stopScreenShare)
+        produceSourceRef.current = 'screen'
+        console.log('producing screen share track:', track.kind)
+        const producer = await pt.produce({ track })
+        console.log('screen share producer created:', producer.id)
+        producers.push(producer)
+      }
+      produceSourceRef.current = undefined
+      screenShareProducersRef.current = producers
+    } catch (err) {
+      console.error('screen share failed:', err)
+      setIsSharingScreen(false)
+    }
+  }, [isSharingScreen])
+
+  const endCall = useCallback(() => {
+    console.log('ending call')
+    for (const track of mediaStream?.getTracks() ?? []) {
+      track.stop()
+    }
+    for (const p of screenShareProducersRef.current) {
+      sendMessage({ action: 'CloseProducer', producerId: p.id as ProducerId })
+      p.close()
+    }
+    screenShareProducersRef.current = []
+    socket?.disconnect()
+    participants.clear()
+    screenShareStreamsRef.current.clear()
+    initStartedRef.current = false
+    setStatus('idle')
+  }, [mediaStream, socket, participants])
 
   const onToggleVideo = (id: string, toggled: boolean) => {
     toggleVideo(toggled)
@@ -453,174 +667,349 @@ export default function MeetPage({ appointmentId }: { appointmentId: string }) {
   }
 
   useEffect(() => {
-    console.log('status:', status)
     if (status !== 'ready') return
-    if (!socket) {
-      console.log('socket not initialized')
-      return
-    }
+    if (!socket) return
+    if (initStartedRef.current) return
     init()
-  }, [init, socket, status])
+  }, [init, socket, status, mediaStream])
+
+  const avatarInitial = watchedUsername?.[0]?.toUpperCase() || '?'
+  const allParticipants = participants.list()
+  const remoteParticipants = allParticipants.filter(p => !p.local)
+  const remoteCount = remoteParticipants.length
+  const screenShareParticipant = screenShareParticipantId
+    ? allParticipants.find(p => p.id === screenShareParticipantId)
+    : undefined
+
+  try {
+    console.log('RENDER:',
+      'screenShareParticipantId=', screenShareParticipantId,
+      'remoteCount=', remoteCount,
+      'remoteParticipants=', remoteParticipants.map(p => ({
+        id: p.id, name: p.name, local: p.local,
+        videoTracks: p.mediaStream.getVideoTracks().length,
+        audioTracks: p.mediaStream.getAudioTracks().length,
+        trackReadyStates: p.mediaStream.getTracks().map(t => `${t.kind}=${t.readyState}`),
+      })),
+    )
+  } catch (e) {
+    console.error('RENDER LOG ERROR:', e)
+  }
 
   return (
-    <div id="main" className="">
+    <div id="main" className="h-dvh w-screen bg-[#202124] overflow-hidden">
       {status === 'ready' ? (
-        <>
-        <div className={cn(
-          'w-full h-full grid',
-          participants.list().length === 1 && 'grid-cols-1',
-          participants.list().length === 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4',
-        )}>
-          {participants.list().map((p) => (
-            <div key={p.id}></div>
-          ))}
-        </div>
-        <div className="flex flex-col w-full h-310 overflow-hidden">
-          <div className="relative flex flex-col w-full h-full bg-black overflow-hidden">
-            <div className="absolute bottom-4 right-4 w-28 h-28 md:w-40 md:h-40 border-2 border-gray-700 rounded-xl overflow-hidden">
-              <video
-                ref={previewRef}
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              {!videoEnabled && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="rounded-full border-2 border-white size-24 flex items-center justify-center font-bold text-2xl text-white bg-black/40 backdrop-blur">
-                    You
+        <div className="relative h-full overflow-hidden">
+          {remoteCount > 0 && (
+            <div className={cn(
+              'h-full w-full p-4',
+              screenShareParticipant
+                ? 'flex flex-col gap-2'
+                : cn(
+                    'grid auto-rows-fr gap-2',
+                    remoteCount === 1 && 'grid-cols-1',
+                    remoteCount === 2 && 'grid-cols-2',
+                    remoteCount === 3 && 'grid-cols-2 md:grid-cols-3',
+                    remoteCount >= 4 && remoteCount <= 6 && 'grid-cols-3',
+                    remoteCount >= 7 && 'grid-cols-4',
+                  ),
+            )}>
+              {screenShareParticipant && (() => {
+                const screenStream = screenShareStreamsRef.current.get(screenShareParticipant.id)
+                return (
+                <div className="flex-1 rounded-xl bg-[#2d2f31] overflow-hidden relative min-h-0">
+                  <video
+                    key={'screen-' + screenShareParticipant.id}
+                    ref={el => {
+                      if (el && screenStream && el.srcObject !== screenStream) {
+                        console.log('setting screen share srcObject')
+                        el.srcObject = screenStream
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-contain bg-black"
+                    onLoadedMetadata={e => {
+                      console.log('screen share onLoadedMetadata')
+                      e.currentTarget.play().catch((err) => {
+                        console.warn('screen share play() failed:', err)
+                      })
+                    }}
+                  />
+                  <div className="absolute bottom-2 left-3 text-sm text-white bg-black/40 px-2 py-0.5 rounded z-10">
+                    {screenShareParticipant.name || screenShareParticipant.id.slice(0, 8)}'s screen
                   </div>
                 </div>
-              )}
-            </div>
-
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-              <div className="flex items-center gap-4 px-6 py-3 rounded-full bg-black/60 backdrop-blur-md shadow-lg">
-                <Button
-                  size="icon-xl"
-                  className="rounded-full bg-white/10 hover:bg-white/20"
-                  disabled={!hasVideo}
-                  onClick={() => toggleVideo(!videoEnabled)}
-                >
-                  {videoTrack?.enabled ? <Camera className="text-white" /> : <CameraOff className="text-white" />}
-                </Button>
-
-                <Button
-                  size="icon-xl"
-                  className="rounded-full bg-white/10 hover:bg-white/20"
-                  disabled={!hasAudio}
-                  onClick={() => toggleAudio(!audioEnabled)}
-                >
-                  {audioTrack?.enabled ? <Mic className="text-white" /> : <MicOff className="text-white" />}
-                </Button>
-
-                <Button
-                  size="icon-xl"
-                  className="rounded-full bg-white/10 hover:bg-white/20"
-                  disabled
-                >
-                  <ScreenShare className="text-white" />
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  size="icon-xl"
-                  className="rounded-full"
-                >
-                  <Phone />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* <div className="relative w-full h-full bg-gray-900 flex items-center justify-center overflow-hidden">
-          <div className="w-full h-full bg-black rounded-xl overflow-hidden flex items-center justify-center">
-            {remoteParticipant ? (
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover rounded-xl"
-              />
-            ) : (
-              <div className="text-gray-400">Waiting for participant...</div>
-            )}
-            {remoteParticipant && (
-              <div className="absolute bottom-2 left-2 bg-gray-800 bg-opacity-60 px-2 py-1 rounded text-white text-sm md:text-base">
-                {remoteParticipant.name}
-              </div>
-            )}
-          </div>
-
-          {localStream && (
-            <div className="absolute bottom-4 right-4 w-28 h-28 md:w-40 md:h-40 border-2 border-gray-700 rounded-xl overflow-hidden">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-1 left-1 bg-gray-800 bg-opacity-60 px-1 rounded text-white text-xs md:text-sm">
-                {name}
+                )
+              })()}
+              <div className={cn(
+                screenShareParticipant ? 'flex-shrink-0 flex gap-2 max-h-32' : '',
+                !screenShareParticipant && '',
+              )}>
+                {(screenShareParticipant ? remoteParticipants : remoteParticipants).map((p) => {
+                  const isVideoPaused = pausedProducers.has(p.id + ':video')
+                  const hasVideoTrack = p.mediaStream.getVideoTracks().length > 0
+                  return (
+                  <div key={p.id} className={cn(
+                    'rounded-xl bg-[#2d2f31] overflow-hidden relative',
+                    screenShareParticipant && 'flex-1 min-w-0',
+                    !screenShareParticipant && 'h-full',
+                  )}>
+                    {hasVideoTrack && !isVideoPaused ? (
+                      <video
+                        key={'remote-video-' + p.id}
+                        ref={el => {
+                          if (el && el.srcObject !== p.mediaStream) {
+                            el.srcObject = p.mediaStream
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onLoadedMetadata={e => {
+                          e.currentTarget.play().catch(() => {})
+                        }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-[#2d2f31]">
+                        <Avatar className="size-20">
+                          <AvatarFallback className="bg-[#5f6368] text-white text-3xl">
+                            {p.name ? p.name.slice(0, 2).toUpperCase() : p.id.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 left-3 text-sm text-white bg-black/40 px-2 py-0.5 rounded z-10">
+                      {p.name || p.id.slice(0, 8)}
+                    </div>
+                    <div className="absolute bottom-2 right-2 flex gap-1.5 z-10">
+                      {pausedProducers.has(p.id + ':audio') && (
+                        <div className="bg-[#d93025] rounded-full p-1">
+                          <MicOff size={14} className="text-white" />
+                        </div>
+                      )}
+                      {isVideoPaused && (
+                        <div className="bg-[#d93025] rounded-full p-1">
+                          <CameraOff size={14} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  )
+                })}
               </div>
             </div>
           )}
-        </div> */}
-        </>
-      ) :
-      <>
-      <div id="container" className="flex w-full items-center justify-center">
-        <form onSubmit={handleSubmit(onSubmit)} className="flex w-full items-center justify-center">
-          <FieldGroup className="w-64">
-            <Controller
-              name="username"
-              control={control}
-              rules={{ required: true }}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor="username">Name</FieldLabel>
-                  <Input type="text" id="username" placeholder="username" {...field} />
-                </Field>
+          <div className={cn(
+            remoteCount === 0
+              ? 'absolute inset-0'
+              : 'absolute bottom-4 right-4 w-52 aspect-video rounded-xl border-2 border-[#5f6368] shadow-2xl z-20',
+            'overflow-hidden transition-all duration-300',
+          )}>
+            <video
+              ref={previewRef}
+              muted
+              playsInline
+              autoPlay
+              className={cn(
+                'object-cover w-full h-full',
+                !videoEnabled && 'hidden',
               )}
+              onLoadedMetadata={e => {
+                e.currentTarget.play().catch(() => {})
+              }}
             />
-            <Controller
-              name="passcode"
-              control={control}
-              rules={{ required: true }}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor="passcode">Passcode</FieldLabel>
-                  <Input type="text" id="passcode" placeholder="passcode" {...field} />
-                </Field>
-              )}
-            />
-            <Button type="submit">Join</Button>
-          </FieldGroup>
-        </form>
-        <div className="flex flex-col w-full">
-          <figure ref={figureRef} className="m-4 w-full h-96 border-2 relative">
-            <video className="w-full h-full" id="preview-send" ref={previewRef} muted />
-          </figure>
-          <div className="flex w-full flex-col">
-            <Button size="icon-lg" className="rounded-full" disabled={!hasVideo} onClick={() => toggleVideo(!videoEnabled)}>
-              <VideoOff />
-            </Button>
-            <div className="flex flex-col items-center w-full">
-              {audioDevices.map((ad) => (
-                <p key={ad.deviceId}>{ad.label.replace('Default', '(Default)')}</p>
-              ))}
+            {!videoEnabled && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#2d2f31]">
+                <Avatar className={remoteCount > 0 ? 'size-12' : 'size-28'}>
+                  <AvatarFallback className="bg-[#5f6368] text-white text-lg">
+                    {avatarInitial}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            )}
+            <div className="absolute bottom-2 left-3 text-sm text-white bg-black/40 px-2 py-0.5 rounded z-10">
+              {joinPayloadRef.current?.username || watchedUsername || 'You'}
             </div>
-            <div className="flex flex-col items-center w-full">
-              {videoDevices.map((vd) => (
-                <p key={vd.deviceId}>{vd.label}</p>
-              ))}
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-6 z-30 pointer-events-none">
+            <div className="flex items-center gap-3 px-4 py-2 bg-[#3c4043]/90 rounded-full shadow-lg pointer-events-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    className="rounded-full bg-transparent hover:bg-[#5f6368] text-white data-[state=open]:bg-[#5f6368]"
+                    disabled={!hasAudio}
+                    onClick={() => toggleAudio(!audioEnabled)}
+                  >
+                    {audioTrack?.enabled ? <Mic size={20} /> : <MicOff size={20} />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-56">
+                  <DropdownMenuGroup>
+                    {audioDevices.map((device) => (
+                      <DropdownMenuItem key={device.deviceId} className="text-sm">
+                        {device.label || `Microphone ${device.deviceId.slice(0, 4)}`}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    className="rounded-full bg-transparent hover:bg-[#5f6368] text-white data-[state=open]:bg-[#5f6368]"
+                    disabled={!hasVideo}
+                    onClick={() => toggleVideo(!videoEnabled)}
+                  >
+                    {videoTrack?.enabled ? <Camera size={20} /> : <CameraOff size={20} />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-56">
+                  <DropdownMenuGroup>
+                    {videoDevices.map((device) => (
+                      <DropdownMenuItem key={device.deviceId} className="text-sm">
+                        {device.label || `Camera ${device.deviceId.slice(0, 4)}`}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                size="icon"
+                className={cn(
+                  'rounded-full bg-transparent hover:bg-[#5f6368] text-white',
+                  isSharingScreen && 'bg-[#d93025] hover:bg-[#cc3838] text-white',
+                )}
+                onClick={toggleScreenShare}
+              >
+                <ScreenShare size={20} />
+              </Button>
+              <Separator orientation="vertical" className="h-8 bg-[#5f6368]" />
+              <Button
+                variant="destructive"
+                size="icon"
+                className="rounded-full size-10"
+                onClick={endCall}
+              >
+                <Phone size={20} className="rotate-135" />
+              </Button>
             </div>
+          </div>
+        </div>
+      ) : (
+        <div id="container" className="flex w-full h-full items-center justify-center">
+          <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md">
+            <div className="bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl">
+              <figure ref={figureRef} className="relative aspect-video bg-[#2d2f31] m-0 flex items-center justify-center">
+                <video
+                  className={cn(
+                    'w-full h-full object-cover',
+                    !videoEnabled && 'hidden',
+                  )}
+                  id="preview-send"
+                  ref={previewRef}
+                  muted
+                  playsInline
+                />
+                {!videoEnabled && (
+                  <div className="flex flex-col items-center gap-3">
+                    <Avatar className="size-28">
+                      <AvatarFallback className="bg-[#5f6368] text-5xl text-white">
+                        {avatarInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                )}
+              </figure>
+              <div className="p-6 space-y-4">
+                <div className="flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleVideo(!videoEnabled)}
+                    disabled={!hasVideo}
+                    className={cn(
+                      'size-12 rounded-full flex items-center justify-center transition-colors',
+                      videoTrack?.enabled
+                        ? 'bg-[#5f6368] hover:bg-[#7a7f85] text-white'
+                        : 'bg-[#d93025] hover:bg-[#cc3838] text-white',
+                    )}
+                  >
+                    {videoTrack?.enabled ? <Camera size={22} /> : <CameraOff size={22} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleAudio(!audioEnabled)}
+                    disabled={!hasAudio}
+                    className={cn(
+                      'size-12 rounded-full flex items-center justify-center transition-colors',
+                      audioTrack?.enabled
+                        ? 'bg-[#5f6368] hover:bg-[#7a7f85] text-white'
+                        : 'bg-[#d93025] hover:bg-[#cc3838] text-white',
+                    )}
+                  >
+                    {audioTrack?.enabled ? <Mic size={22} /> : <MicOff size={22} />}
+                  </button>
+                </div>
+                <FieldGroup className="w-full!">
+                  <Controller
+                    name="username"
+                    control={control}
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor="username" className="text-[#9aa0a6] text-xs font-normal">Your name</FieldLabel>
+                        <Input
+                          type="text"
+                          id="username"
+                          placeholder="Your name"
+                          className="h-10 rounded-lg bg-[#2d2f31] border-[#5f6368] text-white placeholder:text-[#9aa0a6] focus-visible:border-[#8ab4f8] focus-visible:ring-[#8ab4f8]/30"
+                          {...field}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="passcode"
+                    control={control}
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor="passcode" className="text-[#9aa0a6] text-xs font-normal">Passcode</FieldLabel>
+                        <Input
+                          type="password"
+                          id="passcode"
+                          placeholder="Enter passcode"
+                          className="h-10 rounded-lg bg-[#2d2f31] border-[#5f6368] text-white placeholder:text-[#9aa0a6] focus-visible:border-[#8ab4f8] focus-visible:ring-[#8ab4f8]/30"
+                          {...field}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full h-11 rounded-full text-base font-medium bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124]"
+                  >
+                    Join now
+                  </Button>
+                </FieldGroup>
+              </div>
+            </div>
+          </form>
+          <div className="hidden">
+            {audioDevices.map((ad) => (
+              <p key={ad.deviceId}>{ad.label.replace('Default', '(Default)')}</p>
+            ))}
+            {videoDevices.map((vd) => (
+              <p key={vd.deviceId}>{vd.label}</p>
+            ))}
             <VideoDevices devices={videoDevices} onToggleVideo={onToggleVideo} />
           </div>
         </div>
-      </div>
-      </>
-      }
+      )}
     </div>
   )
 }
@@ -635,7 +1024,6 @@ function VideoDevices({
   const [camera, setCamera] = useState<MediaDeviceInfo>(devices?.[0])
   const [toggled, setToggled] = useState(true)
   const toggleVideo = useCallback(() => {
-    // if (!camera) return
     setToggled(!toggled)
     onToggleVideo(camera?.deviceId, !toggled)
   }, [camera])
@@ -651,7 +1039,6 @@ function VideoDevices({
           <DropdownMenuGroup>
             {devices.map((item) => (
               <DropdownMenuItem key={item.deviceId}>
-                <VolumeOffIcon />
                 {item.label}
               </DropdownMenuItem>
             ))}
@@ -659,7 +1046,7 @@ function VideoDevices({
         </DropdownMenuContent>
       </DropdownMenu>
       <Button variant="outline" size="icon-lg" onClick={toggleVideo}>
-        {toggled ? <VideoOffIcon /> : <VideoIcon />}
+        {toggled ? <CameraOff /> : <Camera />}
       </Button>
     </ButtonGroup>
   )
