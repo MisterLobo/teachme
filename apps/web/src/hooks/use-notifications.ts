@@ -1,6 +1,6 @@
 import { logout } from '@/lib/actions'
 import { PaymentStatusEventPayload } from '@/lib/types'
-import { beforeLogout, deriveKey, deriveMasterKey } from '@/lib/utils'
+import { beforeLogout } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { io } from 'socket.io-client'
@@ -42,13 +42,6 @@ export const useNotifications = (userJwt: string) => {
       await logout()
       location.reload()
     })
-    .on('user.key.create', async (data: any) => {
-      console.log('[key.create] MESSAGE:', data)
-      const accessCodeBytes = crypto.getRandomValues(new Uint8Array(16))
-      const accessCode = accessCodeBytes.toBase64()
-      const master = await deriveMasterKey(accessCode, data.session_salt)
-      const sessionKey = await deriveKey(master, 'session_key')
-    })
     .on('auth.login', async (data) => {
       console.log('[auth.login] data:', data)
     })
@@ -60,8 +53,4 @@ export const useNotifications = (userJwt: string) => {
       socket.disconnect()
     }
   }, [queryClient, userJwt])
-
-  const sendNotification = async () => {
-    
-  }
 }
