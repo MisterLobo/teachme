@@ -1,0 +1,77 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  hostmetrics:
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      load:
+      memory:
+      network:
+
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "otelcol"
+          scrape_interval: 10s
+          static_configs:
+            - targets: ["0.0.0.0:8888"]
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  resource:
+    attributes:
+      - key: service.name
+        value: "otel-collector"
+        action: upsert
+      - key: deployment.environment
+        value: "development"
+        action: upsert
+
+exporters:
+  debug:
+    verbosity: detailed
+
+  # Uncomment and configure to send OTLP data to Grafana Alloy for Loki forwarding.
+  # When the Loki stack (docker/loki/docker-compose.yaml) is running alongside
+  # the main stack, set OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318 on app services.
+  otlphttp:
+    endpoint: http://alloy:4318
+    tls:
+      insecure: true
+
+  # OTLP exporter targeting the Loki gateway directly (experimental / Loki-native OTLP).
+  otlphttp/loki:
+    endpoint: http://loki-gateway:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp, hostmetrics, prometheus]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otelhttp/loki, debug]
