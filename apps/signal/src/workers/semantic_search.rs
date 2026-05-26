@@ -10,6 +10,7 @@ pub struct Worker {
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct WorkerArgs {
+    pub prompt: String,
     pub search_params: SearchParams,
 }
 
@@ -56,13 +57,13 @@ impl BackgroundWorker<WorkerArgs> for Worker {
         let mut model = TextEmbedding::try_new(Default::default()).expect("could not initialize model");
 
         let documents = vec![
-            "passage: Hello, World!",
+            args.prompt,
         ];
 
         let embeddings = model.embed(documents, None).unwrap();
         let first = &embeddings[0];
 
-        tutors::Model::find_match(&self.ctx.db, &args.search_params, first.clone()).await?;
+        // let results = tutors::Model::find_all(&self.ctx.db, &args.search_params).await?;
 
         Ok(())
     }

@@ -11,7 +11,7 @@ async fn test_run_semantic_search_worker() {
 
     // Execute the worker ensuring that it operates in 'ForegroundBlocking' mode, which prevents the addition of your worker to the background
     assert!(
-        Worker::perform_later(&boot.app_context,WorkerArgs { search_params: Default::default() })
+        Worker::perform_later(&boot.app_context,WorkerArgs { search_params: Default::default(), prompt: "".into() })
             .await
             .is_ok()
     );

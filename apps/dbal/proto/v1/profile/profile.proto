@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package v1.profile;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+// import "validate.proto";
+
+option go_package = "github.com/misterlobo/teachme/v1/profile";
+
+/*
+* ProfileService provides access to managing user's own profile
+*/
+service ProfileService {
+  /*
+  * Get
+  */
+  rpc Get (ProfileGet) returns (ProfileResponse);
+  /*
+  * Update
+  */
+  rpc Update (ProfileUpdate) returns (ProfileResponse);
+}
+
+/*
+ * ProfileGet
+ */
+message ProfileGet {
+  optional bool with_availability = 1;
+}
+
+/*
+ * ProfileUpdate
+ */
+message ProfileUpdate {
+  optional string country = 5;
+  optional string currency = 6;
+  optional string timezone = 7;
+  optional string title = 8;
+  optional string categories = 9;
+  optional string subjects = 10;
+  optional string primary_language = 11;
+  optional string locale = 12;
+  optional string plan = 13;
+  optional bool is_trial = 14;
+  optional string first_name = 15;
+  optional string last_name = 16;
+  optional int32 session_duration = 17;
+  optional float session_price = 18;
+}
+
+/*
+ * ProfileData
+ */
+message ProfileData {
+  string id = 1;
+  string name = 2;
+  optional string first_name = 3;
+  optional string last_name = 4;
+  optional string country = 5;
+  optional string currency = 6;
+  optional string language = 7;
+  optional string dob = 8;
+  optional int32 session_duration = 9;
+  optional float session_price = 10;
+  optional string categories = 11;
+  optional string subjects = 12;
+  optional string title = 13;
+  optional string bio = 14;
+  optional string interests = 15;
+  optional string email = 16;
+  optional string phone = 17;
+  optional bool account_verified = 18;
+  optional bool payment_verified = 19;
+  optional bool passkey_enabled = 20;
+  optional float average_rating = 21;
+  optional int64 students = 22;
+  repeated string availability = 23;
+  repeated string specialties = 24;
+  optional bool private_sessions_enabled = 25;
+  optional string avatar_url = 26;
+  optional string banner_url = 27;
+}
+
+/*
+ * TutorProfile
+ */
+message TutorProfile {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string country = 4;
+  string currency = 5;
+  string language = 6;
+  int32 session_duration = 7;
+  float session_price = 8;
+  string categories = 9;
+  string subjects = 10;
+  string title = 11;
+  string bio = 12;
+  string other_languages = 13;
+  string status = 14;
+  optional bool verified = 15;
+  optional bool payment_verified = 16;
+  optional bool phone_verified = 17;
+  optional float rating = 18;
+}
+
+/*
+ * StudentProfile
+ */
+message StudentProfile {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string country = 4;
+  string currency = 5;
+  string language = 6;
+  optional string dob = 7;
+  optional string status = 8;
+}
+
+/*
+ * ProfileResponse
+ */
+message ProfileResponse {
+  string status = 1;
+  int32 status_code = 2;
+  ProfileData data = 3;
+  optional string error = 4;
+}

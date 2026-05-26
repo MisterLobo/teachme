@@ -1,0 +1,42 @@
+[package]
+name = "wasm_worker"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+p256 = ["dep:p256"]
+
+[dependencies]
+argon2 = "0.5"
+wasm-bindgen = { version = "0.2.106", features = ["serde-serialize"] }
+#opaque-ke = { version = "4.0.0", features = ["argon2"] }
+rand = { workspace = true }
+rand_core = { workspace = true }
+getrandom = { version = "0.2.12", features = ["js", "wasm-bindgen"] }
+p256 = { version = "0.13", default-features = false, features = [
+  "hash2curve",
+  "voprf",
+], optional = true }
+base64 = { workspace = true }
+serde = { version = "1.0.169", features = ["derive"] }
+serde-wasm-bindgen = "0.6.5"
+tsify = { version = "0.5.6", features = ["js"] }
+js-sys = "0.3.67"
+generic-array = "=0.14.7" # pinned to avoid deprecation warnings (see opaque-ke)
+sha2 = "0.10.9"
+opaque-ke = { workspace = true }
+pakery-opaque = {version = "0.2" }
+pakery-crypto = { version = "0.2", features = ["ristretto255", "os_rng"] }
+pakery-core = { version = "0.2", features = ["os_rng"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.40"
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

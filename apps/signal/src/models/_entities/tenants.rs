@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "tenants")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -14,7 +15,59 @@ pub struct Model {
     pub owner_id: Uuid,
     pub tenant_type: TenantType,
     pub name: String,
+    pub plan: Option<String>,
+    pub stripe_customer_id: Option<String>,
+    pub stripe_subscription_id: Option<String>,
+    pub status: Option<String>,
+    pub trial_ends_at: Option<DateTimeWithTimeZone>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::appointments::Entity")]
+    Appointments,
+    #[sea_orm(has_one = "super::organizations::Entity")]
+    Organizations,
+    #[sea_orm(has_one = "super::transactions::Entity")]
+    Transactions,
+    #[sea_orm(has_one = "super::tutors::Entity")]
+    Tutors,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::OwnerId",
+        to = "super::users::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Users,
+}
+
+impl Related<super::appointments::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Appointments.def()
+    }
+}
+
+impl Related<super::organizations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Organizations.def()
+    }
+}
+
+impl Related<super::transactions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Transactions.def()
+    }
+}
+
+impl Related<super::tutors::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tutors.def()
+    }
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
+    }
+}

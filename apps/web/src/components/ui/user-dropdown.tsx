@@ -14,8 +14,11 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils"
+import { getMyProfile, logout } from "@/lib/actions";
+import { beforeLogout, cn } from "@/lib/utils"
 import { Icon } from "@iconify/react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 const MENU_ITEMS = {
   status: [
@@ -58,9 +61,18 @@ const MENU_ITEMS = {
       icon: "solar:users-group-rounded-bold-duotone", 
       label: "Switch account", 
       action: "switch",
-      showAvatar: false
+      showAvatar: false,
     },
-    { icon: "solar:logout-2-bold-duotone", label: "Log out", action: "logout" }
+    {
+      icon: "solar:logout-2-bold-duotone",
+      label: "Log out",
+      action: "logout",
+      onAction: async () => {
+        await beforeLogout()
+        await logout()
+        location.href = '/login'
+      },
+    },
   ]
 };
 
@@ -78,11 +90,19 @@ export const UserDropdown = ({
   promoDiscount = "20% off",
   accounts = []
 }) => {
+  const { data: { email, phone, profile } = {}, isLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: getMyProfile,
+  })
+  const name = useMemo(() => `${profile?.firstName} ${profile?.lastName}`, [isLoading])
   const renderMenuItem = (item: any, index: any) => (
     <DropdownMenuItem 
       key={index}
       className={cn(item.badge || item.showAvatar || item.rightIcon ? "justify-between" : "", "p-2 rounded-lg cursor-pointer")}
-      onClick={() => onAction()}
+      onClick={() => {
+        console.log(item)
+        item.onAction?.()
+      }}
     >
       <span className="flex items-center gap-1.5 font-medium">
         <Icon
@@ -124,22 +144,22 @@ export const UserDropdown = ({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Avatar className="cursor-pointer size-10 border border-white dark:border-gray-700">
-          <AvatarImage src={user.avatar} alt={user.name} />
+          <AvatarImage src={user.avatar} alt={name} />
           <AvatarFallback>{user.initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="no-scrollbar w-[310px] rounded-2xl bg-gray-50 dark:bg-black/90 p-0" align="end">
+      <DropdownMenuContent className="no-scrollbar w-77.5 rounded-2xl bg-gray-50 dark:bg-black/90 p-0" align="end">
         <section className="bg-white dark:bg-gray-100/10 backdrop-blur-lg rounded-2xl p-1 shadow border border-gray-200 dark:border-gray-700/20">
           <div className="flex items-center p-2">
             <div className="flex-1 flex items-center gap-2">
               <Avatar className="cursor-pointer size-10 border border-white dark:border-gray-700">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={user.avatar} alt={name} />
                 <AvatarFallback>{user.initials}</AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{user.name}</h3>
-                <p className="text-muted-foreground text-xs">{user.username}</p>
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{name}</h3>
+                <p className="text-muted-foreground text-xs">{email}</p>
               </div>
             </div>
             <Badge className={`${getStatusColor(user.status as any)} border-[0.5px] text-[11px] rounded-sm capitalize`}>

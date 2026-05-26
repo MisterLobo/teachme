@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 use chrono::{offset::Local, Duration};
 use loco_rs::{auth::jwt, hash, prelude::*};
+use sea_orm::{ActiveEnum, DerivePartialModel, FromQueryResult, QuerySelect};
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{Map, Value};
 use uuid::Uuid;
+
+use crate::models::{self, _entities::{customers, sea_orm_active_enums::{self, CustomerType, TenantType, UserRole as Role}, tenants}};
 
 pub use super::_entities::users::{self, ActiveModel, Entity, Model};
 
@@ -16,12 +19,136 @@ pub struct LoginParams {
     pub password: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum UserRole {
+    Tenant(TenantType),
+    Customer(CustomerType),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum RoleWithId {
+    Tenant(Uuid),
+    Customer(Uuid),
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[sea_orm(table_name = "users")]
+#[serde(rename_all = "camelCase")]
+pub struct SafeModel {
+    pub id: Uuid,
+    pub email: String,
+    pub name: String,
+    pub email_verified_at: Option<DateTimeWithTimeZone>,
+    pub reset_sent_at: Option<DateTimeWithTimeZone>,
+    pub email_verification_token: Option<String>,
+    pub email_verification_sent_at: Option<DateTimeWithTimeZone>,
+    pub magic_link_expiration: Option<DateTimeWithTimeZone>,
+    pub cal_user_id: Option<i32>,
+    pub cal_username: Option<String>,
+    pub phone: Option<String>,
+    pub phone_verified_at: Option<DateTimeWithTimeZone>,
+    pub role: Option<Role>,
+    pub pid: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[serde(rename_all = "camelCase")]
+pub struct UserPid {
+    #[sea_orm(from_col = "id")]
+    pub id: Uuid,
+    pub pid: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[serde(rename_all = "camelCase")]
+pub struct NamedUser {
+    #[sea_orm(from_col = "id")]
+    pub id: Uuid,
+    pub pid: Option<Uuid>,
+    pub email: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[sea_orm(table_name = "users")]
+#[serde(rename_all = "camelCase")]
+pub struct EmailWithRoleId {
+    pub id: Option<Uuid>,
+    pub email: Option<String>,
+    pub role: Option<Role>,
+    pub pid: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, DerivePartialModel, FromQueryResult, Eq, Serialize, Deserialize)]
+#[sea_orm(entity = "users::Entity")]
+#[sea_orm(table_name = "users")]
+#[serde(rename_all = "camelCase")]
+pub struct AuthUser {
+    pub id: Option<Uuid>,
+    pub email: Option<String>,
+    pub name: String,
+    pub role: Option<Role>,
+    pub cal_user_id: Option<i32>,
+    pub cal_username: Option<String>,
+    pub pid: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterParams {
     pub email: String,
     pub password: String,
-    pub name: String,
+    pub name: Option<String>,
+    pub dob: Option<String>,
+    #[serde(rename = "tenantType")]
+    pub tenant_type: Option<TenantType>,
+    #[serde(rename = "customerType")]
+    pub customer_type: Option<CustomerType>,
+    #[serde(rename = "calUserId")]
     pub cal_user_id: Option<i32>,
+    #[serde(rename = "calUserName")]
+    pub cal_username: Option<String>,
+    #[serde(rename = "firstName")]
+    pub first_name: Option<String>,
+    #[serde(rename = "lastName")]
+    pub last_name: Option<String>,
+    pub country: Option<String>,
+    pub currency: Option<String>,
+    pub role: Option<UserRole>,
+    pub phone: Option<String>,
+    pub timezone: Option<String>,
+    pub categories: Option<String>,
+    pub subjects: Option<String>,
+    #[serde(rename = "primaryLanguage")]
+    pub primary_language: Option<String>,
+    pub locale: Option<String>,
+    #[serde(rename = "eventTypeSlug")]
+    pub event_type_slug: Option<String>,
+    #[serde(rename = "calendarId")]
+    pub calendar_id: Option<i32>,
+    #[serde(rename = "calendarName")]
+    pub calendar_name: Option<String>,
+    #[serde(rename = "scheduleId")]
+    pub schedule_id: Option<i32>,
+    #[serde(rename = "sessionDuration")]
+    pub session_duration: Option<i32>,
+    #[serde(rename = "sessionPrice")]
+    pub session_price: Option<f32>,
+    #[serde(rename = "calMetadata")]
+    pub cal_metadata: Option<Value>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum UserType {
+    Individual,
+    Organization,
+    Student,
+    Parent,
+    Null,
 }
 
 #[derive(Debug, Validate, Deserialize)]
@@ -50,8 +177,8 @@ impl ActiveModelBehavior for super::_entities::users::ActiveModel {
         self.validate()?;
         if insert {
             let mut this = self;
-            this.pid = ActiveValue::Set(Uuid::new_v4());
-            this.api_key = ActiveValue::Set(format!("lo-{}", Uuid::new_v4()));
+            this.pid = ActiveValue::Set(Uuid::now_v7());
+            this.api_key = ActiveValue::Set(format!("lo-{}", Uuid::now_v7()));
             Ok(this)
         } else {
             Ok(self)
@@ -79,6 +206,24 @@ impl Authenticable for Model {
 }
 
 impl Model {
+    pub fn safe(&self) -> SafeModel {
+        SafeModel {
+            id: self.id,
+            cal_user_id: self.cal_user_id.clone(),
+            cal_username: self.cal_username.clone(),
+            email: self.email.clone(),
+            name: self.name.clone(),
+            phone: self.phone.clone(),
+            email_verification_sent_at: None,
+            email_verification_token: None,
+            email_verified_at: None,
+            magic_link_expiration: None,
+            phone_verified_at: None,
+            reset_sent_at: None,
+            role: Some(self.role),
+            pid: Some(self.pid),
+        }
+    }
     /// finds a user by the provided email
     ///
     /// # Errors
@@ -187,6 +332,132 @@ impl Model {
         user.ok_or_else(|| ModelError::EntityNotFound)
     }
 
+    pub async fn find_as_safe(db: &DatabaseConnection, pid: &Uuid) -> ModelResult<SafeModel> {
+        let user = users::Entity::find()
+            .filter(
+                model::query::condition()
+                    .eq(users::Column::Pid, *pid)
+                    .build(),
+            )
+            .select_only()
+            .column(users::Column::Id)
+            .column(users::Column::Role)
+            .column(users::Column::Email)
+            .column(users::Column::Name)
+            .column(users::Column::Phone)
+            .column(users::Column::Pid)
+            .column(users::Column::CalUserId)
+            .column(users::Column::CalUsername)
+            .into_model::<SafeModel>()
+            .one(db)
+            .await?;
+        user.ok_or_else(|| ModelError::EntityNotFound)
+    }
+
+    pub async fn get_user_type(db: &DatabaseConnection, pid: &str) -> UserType {
+        let parse_uuid = Uuid::parse_str(pid).map_err(|e| ModelError::Any(e.into())).expect("failed to parse UUID from str");
+        let user = users::Entity::find()
+            .filter(
+                model::query::condition()
+                    .eq(users::Column::Pid, parse_uuid)
+                    .build(),
+            )
+            .one(db)
+            .await.expect("Could not find user");
+
+        if let Some(u) = user {
+            match u.role {
+                sea_orm_active_enums::UserRole::Tenant => {
+                    let tenant = tenants::Model::find_by_user(&db, &u.id).await.expect("Could not find Tenant for User");
+                    let tenant = match tenant {
+                        Some(ref t) => {
+                            match t.tenant_type {
+                                TenantType::Individual => {
+                                    UserType::Individual
+                                },
+                                TenantType::Organization => {
+                                    UserType::Organization
+                                },
+                            }
+                        },
+                        None => UserType::Null,
+                    };
+                    tenant
+                },
+                sea_orm_active_enums::UserRole::Customer => {
+                    let customer = customers::Model::find_by_user(&db, &u.id).await.expect("Could not find Customer for User");
+                    let profile = match customer.customer_type {
+                        CustomerType::StudentLearner => {
+                            UserType::Student
+                        },
+                        CustomerType::ParentGuardian => {
+                            UserType::Parent
+                        },
+                        _ => UserType::Null,
+                    };
+                    profile
+                },
+            }
+        } else {
+            UserType::Null
+        }
+    }
+
+    pub async fn get_user_role(db: &DatabaseConnection, id: &Uuid) -> Option<(UserRole, RoleWithId)> {
+        let role = Entity::find()
+            .filter(
+                model::query::condition()
+                    .eq(users::Column::Pid, *id)
+                    .build(),
+            )
+            .select_only()
+            .column(users::Column::Id)
+            .column(users::Column::Role)
+            .into_model::<EmailWithRoleId>()
+            .one(db)
+            .await
+            .expect("Error query");
+        
+        tracing::debug!("role: {:?}", &role);
+        let Some(user) = role else {
+            return None;
+        };
+        match user.role {
+            Some(Role::Tenant) => {
+                let Some(tenant) = tenants::Model::find_by_user(db, &user.id.unwrap()).await.expect("err") else {
+                    return None;
+                };
+                match tenant.tenant_type {
+                    TenantType::Individual => Some((
+                        UserRole::Tenant(TenantType::Individual),
+                        RoleWithId::Tenant(tenant.id),
+                    )),
+                    TenantType::Organization => Some((
+                        UserRole::Tenant(TenantType::Organization),
+                        RoleWithId::Tenant(tenant.id),
+                    )),
+                }
+            },
+            Some(Role::Customer) => {
+                let Ok(customer) = customers::Model::find_by_user(db, &user.id.unwrap()).await else {
+                    return None;
+                };
+                match customer.customer_type {
+                    CustomerType::StudentLearner => Some((
+                        UserRole::Customer(CustomerType::StudentLearner),
+                        RoleWithId::Customer(customer.id),
+                    )),
+                    CustomerType::ParentGuardian => Some((
+                        UserRole::Customer(CustomerType::ParentGuardian),
+                        RoleWithId::Customer(customer.id),
+                    )),
+                    _ => None,
+                }
+            },
+            None => None,
+        }
+    }
+
     /// finds a user by the provided api key
     ///
     /// # Errors
@@ -241,12 +512,27 @@ impl Model {
 
         let password_hash =
             hash::hash_password(&params.password).map_err(|e| ModelError::Any(e.into()))?;
-        let user = users::ActiveModel {
+
+        let mut r = sea_orm_active_enums::UserRole::Tenant;
+        if let Some(role) = &params.role {
+            match role {
+                UserRole::Tenant(_) => {
+                    r = sea_orm_active_enums::UserRole::Tenant;
+                },
+                UserRole::Customer(_) => {
+                    r = sea_orm_active_enums::UserRole::Customer;
+                },
+            }
+        }
+        let user = ActiveModel {
             id: ActiveValue::Set(Uuid::now_v7()),
             email: ActiveValue::set(params.email.to_string()),
             password: ActiveValue::set(password_hash),
-            name: ActiveValue::set(params.name.to_string()),
+            name: ActiveValue::set(params.name.clone().unwrap_or_default()),
             cal_user_id: ActiveValue::set(params.cal_user_id.clone()),
+            cal_username: ActiveValue::Set(params.cal_username.clone()),
+            role: ActiveValue::Set(r),
+            phone: ActiveValue::Set(params.phone.clone()),
             ..Default::default()
         }
         .insert(&txn)
@@ -262,9 +548,12 @@ impl Model {
     /// # Errors
     ///
     /// when could not convert user claims to jwt token
-    pub fn generate_jwt(&self, secret: &str, expiration: u64) -> ModelResult<String> {
+    pub fn generate_jwt(&self, secret: &str, expiration: u64, tenant_id: Option<String>) -> ModelResult<String> {
+        let mut claims = Map::new();
+        claims.insert("tenant_id".to_string(), tenant_id.into());
+        claims.insert("role".to_string(), Value::String(self.role.to_value()));
         jwt::JWT::new(secret)
-            .generate_token(expiration, self.pid.to_string(), Map::new())
+            .generate_token(expiration, self.pid.to_string(), claims)
             .map_err(ModelError::from)
     }
 }

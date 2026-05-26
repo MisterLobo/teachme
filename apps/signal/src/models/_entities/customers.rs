@@ -6,18 +6,45 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "customers")]
+#[sea_orm(model)]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
+    pub user_id: Option<Uuid>,
     pub customer_type: CustomerType,
     pub reference_id: Uuid,
     pub plan: Option<String>,
     pub stripe_customer_id: Option<String>,
+    pub stripe_subscription_id: Option<String>,
     pub status: String,
     pub trial_ends_at: Option<DateTimeWithTimeZone>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::parents::Entity")]
+    Parents,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::UserId",
+        to = "super::users::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Users,
+}
+
+impl Related<super::parents::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Parents.def()
+    }
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
+    }
+}

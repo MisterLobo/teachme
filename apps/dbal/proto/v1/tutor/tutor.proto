@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package v1.tutor;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/misterlobo/teachme/v1/tutor";
+
+/*
+ * TutorService
+ */
+service TutorService {
+  /*
+   * Get tutor by ID
+   */
+  rpc GetById (TutorGetById) returns (TutorResponse);
+  /*
+  * List
+  */
+  rpc List (TutorList) returns (TutorResponse);
+  /*
+  * Search
+  */
+  rpc Search (TutorSearch) returns (TutorResponse);
+  /*
+  * GetAvailableSlots
+  */
+  rpc GetAvailableSlots (TutorGetAvailableSlots) returns (TutorResponse);
+  /*
+  * SmartSearch
+  */
+  rpc SmartSearch (TutorSmartSearch) returns (TutorResponse);
+  /*
+  * GetPublicKey
+  */
+  rpc GetPublicKey (TutorGetPublicKeyRequest) returns (TutorGetPublicKeyResponse);
+}
+
+/*
+ * TutorGetById params
+ */
+message TutorGetById {
+  string id = 1;
+  optional bool with_availability = 2;
+  optional bool with_ratings = 3;
+}
+
+/*
+ * TutorList params
+ */
+message TutorList {
+  repeated string ids = 1;
+  repeated string status = 2;
+}
+
+/*
+ * TutorSearch params
+ */
+message TutorSearch {
+  string query = 1;
+  string tz = 2;
+  optional string user_id = 3;
+  optional string pid = 4;
+}
+
+message TutorSmartSearch {
+  optional string category = 1;
+  optional string subject = 2;
+  optional string country = 3;
+  optional string currency = 4;
+  optional string timezone = 5;
+  optional uint32 session_duration = 6;
+  repeated float budget = 7;
+  optional string start_time = 8;
+  optional string locale = 9;
+  optional string topic = 10;
+  optional string code = 11;
+  optional string availability_window = 12;
+  optional string characteristics = 13;
+  optional string skill_level = 14;
+}
+
+/*
+ * TutorSearchResponse
+ */
+message TutorSearchResponse {
+  string category = 1;
+  string subject = 2;
+  float confidence = 3;
+  string currency = 4;
+  string timezone = 5;
+  uint32 session_duration = 6;
+  float session_price = 7;
+  string start_time = 8;
+  optional string locale = 9;
+  optional string topic = 10;
+  repeated float embedding = 11;
+}
+
+/*
+ * TutorGetAvailableSlots
+ */
+message TutorGetAvailableSlots {
+  string query = 1;
+  string tz = 2;
+  optional string user_id = 3;
+  optional string pid = 4;
+}
+
+/*
+ * ProfileData
+ */
+message TutorProfileData {
+  string id = 1;
+  string name = 2;
+  optional string first_name = 3;
+  optional string last_name = 4;
+  optional string country = 5;
+  optional string currency = 6;
+  optional string language = 7;
+  optional string dob = 8;
+  optional int32 session_duration = 9;
+  optional float session_price = 10;
+  optional string categories = 11;
+  optional string subjects = 12;
+  optional string title = 13;
+  optional string bio = 14;
+  optional string interests = 15;
+  optional float rating = 16;
+  optional string timezone = 17;
+}
+
+message TutorDateTimeSlots {
+  string id = 1;
+  repeated TutorGetAvailableSlotsResponseSlots slots = 2;
+  optional TutorProfileData profile = 3;
+}
+
+message TutorTest {
+  string id = 1;
+}
+
+message TutorAvailableSlotsResponse {
+  repeated TutorDateTimeSlots slots = 1;
+}
+
+/*
+ * TutorGetAvailableSlotsResponseTimeSlot
+ */
+message TutorGetAvailableSlotsResponseSlots {
+  string date_slot = 1;
+  repeated TutorGetAvailableSlotsResponseTimeSlot time_slots = 2;
+}
+
+/*
+ * TutorGetAvailableSlotsResponseTimeSlot
+ */
+message TutorGetAvailableSlotsResponseTimeSlot {
+  string start = 1;
+}
+
+/*
+ * TutorResponse
+ */
+message TutorResponse {
+  string status = 1;
+  oneof data {
+    TutorSearchResponse inner = 2;
+    TutorAvailableSlotsResponse outer = 3;
+  }
+}
+
+/*
+ * TutorGetEmbedding
+ */
+message TutorGetEmbedding {
+  string id = 1;
+}
+
+/*
+ * TutorGetEmbeddingResponse
+ */
+message TutorGetEmbeddingResponse {
+  repeated float embedding = 1;
+}
+
+message TutorGetPublicKeyRequest {
+  string id = 1;
+}
+
+message TutorGetPublicKeyResponse {
+  string status = 1;
+  int32 status_code = 2;
+  optional string error = 3;
+  message TutorPublicKey {
+    string type = 1;
+    bytes key = 2;
+    optional string credential_id = 3;
+  }
+  repeated TutorPublicKey public_keys = 4;
+}

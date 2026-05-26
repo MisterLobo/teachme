@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "parents")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -12,11 +13,38 @@ pub struct Model {
     pub id: Uuid,
     pub first_name: String,
     pub last_name: String,
-    pub dob: Date,
+    pub dob: Option<Date>,
     pub sex: Option<String>,
     pub num_child: Option<i32>,
     pub customer_id: Option<Uuid>,
+    pub country: Option<String>,
+    pub currency: Option<String>,
+    pub language: Option<String>,
+    pub locale: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::customers::Entity",
+        from = "Column::CustomerId",
+        to = "super::customers::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Customers,
+    #[sea_orm(has_many = "super::students::Entity")]
+    Students,
+}
+
+impl Related<super::customers::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Customers.def()
+    }
+}
+
+impl Related<super::students::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Students.def()
+    }
+}

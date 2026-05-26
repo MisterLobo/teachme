@@ -1,6 +1,6 @@
 'use client'
 
-import { cn } from '@/lib/utils'
+import { bytesToBase64, cn, createUserKeys, exportKey, importKEKBytes, reconstructKEK, retrieveKey, unwrapMasterKey } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -473,12 +473,17 @@ type FormSchema = {
   currency: string,
   primaryLanguage: string,
   password: string,
+  categories: string,
+  subjects: string,
+  sessionDuration: number,
+  sessionPrice: string,
 }
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<'div'>) {
+  const router = useRouter()
   const {
     control,
     getValues,
@@ -487,40 +492,147 @@ export function SignupForm({
     formState,
     clearErrors,
     setError
-  } = useForm<FormSchema>()
+  } = useForm<FormSchema>({
+    defaultValues: {
+      email: '',
+      firstName: '',
+      lastName: '',
+      dob: '',
+      phone: '',
+      country: '',
+      currency: '',
+      primaryLanguage: '',
+      password: '',
+      categories: '',
+      subjects: '',
+      sessionDuration: 30,
+      sessionPrice: '0',
+    },
+  })
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const timezones = Intl.supportedValuesOf('timeZone')
-    const formattedTimezones = useMemo(() => {
-      return timezones.map(tz => {
-        const formatter = new Intl.DateTimeFormat('en', {
-          timeZone: tz,
-          timeZoneName: 'shortOffset',
-        })
-        const parts = formatter.formatToParts(new Date())
-        const offset = parts.find(p => p.type === 'timeZoneName')?.value || ''
-        const modifiedOffset = offset === 'GMT' ? 'GMT+0' : offset
-  
-        const offsetMatch = offset.match(/GMT([+-]?)(\d+)(?::(\d+))?/)
-        const sign = offsetMatch?.[1] === '-' ? -1 : 1
-        const hours = Number.parseInt(offsetMatch?.[2] || '0', 10)
-        const minutes = Number.parseInt(offsetMatch?.[3] || '0', 10)
-        const totalMinutes = sign * (hours + 60 + minutes)
-  
-        return {
-          label: `(${modifiedOffset}) ${tz.replace(/_/g, ' ')}`,
-          numericOffset: totalMinutes,
-          value: tz,
-        }
+  const formattedTimezones = useMemo(() => {
+    return timezones.map(tz => {
+      const formatter = new Intl.DateTimeFormat(navigator.language, {
+        timeZone: tz,
+        timeZoneName: 'shortOffset',
       })
-      .sort((a, b) => a.numericOffset - b.numericOffset)
-    }, [timezones])
+      const parts = formatter.formatToParts(new Date())
+      const offset = parts.find(p => p.type === 'timeZoneName')?.value || ''
+      const modifiedOffset = offset === 'GMT' ? 'GMT+0' : offset
+
+      const offsetMatch = offset.match(/GMT([+-]?)(\d+)(?::(\d+))?/)
+      const sign = offsetMatch?.[1] === '-' ? -1 : 1
+      const hours = Number.parseInt(offsetMatch?.[2] || '0', 10)
+      const minutes = Number.parseInt(offsetMatch?.[3] || '0', 10)
+      const totalMinutes = sign * (hours + 60 + minutes)
+
+      return {
+        label: `(${modifiedOffset}) ${tz.replace(/_/g, ' ')}`,
+        numericOffset: totalMinutes,
+        value: tz,
+      }
+    })
+    .sort((a, b) => a.numericOffset - b.numericOffset)
+  }, [timezones])
   const [role, setRole] = useState<AccountType | undefined>()
+  const [currency, setCurrency] = useState('USD')
+  const [duration, setDuration] = useState(30)
+  const [country, setCountry] = useState<Country | null>(null)
+  const [timezone, setTimezone] = useState<string>(tz)
+  const [language, setLanguage] = useState<string | null>()
   const selectRole = (e: any, role: AccountType) => {
     e.preventDefault()
     setRole(role)
   }
-  const onSubmit: SubmitHandler<FormSchema> = (data) => {
+  const onSubmitTutorForm: SubmitHandler<FormSchema> = async (data) => {
+    console.log('data:', data)
+    const keys = await createUserKeys(data.password)
+    console.log('keys:', keys)
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_GATEWAY_URL}/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...data,
+        role: 'Individual',
+        timezone,
+        country: country?.code,
+        currency,
+        primaryLanguage: language,
+        sessionPrice: parseInt(data.sessionPrice),
+        keys,
+      }),
+    })
+    if (response.status === 200) {
+      router.push('/login')
+    }
+  }
+  const onSubmitStudentForm: SubmitHandler<FormSchema> = async (data) => {
+    const keys = await createUserKeys(data.password)
+    /* console.log('keys:', keys)
+    const rawKEK = await reconstructKEK()
+    const kek = await importKEKBytes(rawKEK)
+    const mkc = await retrieveKey('wrapped_mk_cipher')
+    const mkiv = await retrieveKey('wrapped_mk_iv')
+    const mk = await unwrapMasterKey(mkc, mkiv, kek)
+    const mkey = await exportKey(mk)
+    console.log('unwrapped MK:', mkey) */
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_GATEWAY_URL}/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...data,
+        role: 'Student',
+        timezone,
+        country: country?.code,
+        currency,
+        primaryLanguage: language,
+        keys,
+      }),
+    })
+    if (response.status === 200) {
+      router.push('/login')
+    }
+  }
+  const onSubmitOrganizationForm: SubmitHandler<FormSchema> = async (data) => {
     console.log(data)
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_GATEWAY_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...data,
+        role: 'Organization',
+        timezone,
+        country: country?.code,
+        currency,
+      }),
+    })
+    const json = await response.json()
+  }
+  const onSubmitParentForm: SubmitHandler<FormSchema> = async (data) => {
+    console.log(data)
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_GATEWAY_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...data,
+        role: 'Parent',
+        timezone,
+        country: country?.code,
+        currency,
+      }),
+    })
+    const json = await response.json()
   }
 
   return (
@@ -580,25 +692,46 @@ export function SignupForm({
             <TabsTab value="organization">Organization</TabsTab>
           </TabsList>
           <TabsPanel value="individual">
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmitTutorForm)}>
               <h1>Tutor Form</h1>
               <FieldGroup>
-                <Field>
-                  <Label htmlFor="email">Email</Label>
-                  <Input type="email" id="email" name="email" />
-                </Field>
-                <Field>
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input type="text" id="first_name" name="first_name" />
-                </Field>
-                <Field>
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input type="text" id="last_name" name="last_name" />
-                </Field>
+                <Controller
+                  name="email"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel htmlFor="email">Email</FieldLabel>
+                      <Input type="email" id="email" {...field} />
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="firstName"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel htmlFor="first_name">First Name</FieldLabel>
+                      <Input type="text" id="first_name" {...field} />
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="lastName"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel htmlFor="last_name">Last Name</FieldLabel>
+                      <Input type="text" id="last_name" {...field} />
+                    </Field>
+                  )}
+                />
                 <Field orientation="horizontal">
                   <Field>
                     <span>Country</span>
-                    <Combobox autoHighlight defaultValue={countries[0]} items={countries}>
+                    <Combobox autoHighlight defaultValue={country} items={countries} onValueChange={(v: Country | null) => setCountry(v)}>
                       <ComboboxTrigger
                         className="w-96"
                         render={
@@ -632,53 +765,27 @@ export function SignupForm({
                     </Combobox>
                   </Field>
                 </Field>
-                <Field>
-                  <span>Time zone</span>
-                  <Combobox autoHighlight defaultValue={tz} items={formattedTimezones}>
-                    <ComboboxTrigger render={<SelectButton />} className="w-1/2">
-                      <ComboboxValue placeholder="Select timezone" />
-                    </ComboboxTrigger>
-                    <ComboboxPopup aria-label="Select timezone">
-                      <div className="border-b p-2">
-                        <ComboboxInput
-                          className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
-                          placeholder="e.g. Asia/Manila"
-                          showTrigger={false}
-                          startAddon={<SearchIcon />}
-                        />
-                      </div>
-                      <ComboboxEmpty>No timezones found.</ComboboxEmpty>
-                      <ComboboxList>
-                        {item => (
-                          <ComboboxItem key={item.value} value={item}>
-                            {item.label}
-                          </ComboboxItem>
-                        )}
-                      </ComboboxList>
-                    </ComboboxPopup>
-                  </Combobox>
-                </Field>
                 <Field orientation="horizontal">
                   <Field>
-                    <span>Currency</span>
-                    <Combobox autoHighlight items={currencies}>
-                      <ComboboxTrigger render={<SelectButton />} className="w-96">
-                        <ComboboxValue placeholder="Select currency" />
+                    <span>Time zone</span>
+                    <Combobox autoHighlight defaultValue={tz} items={formattedTimezones}>
+                      <ComboboxTrigger render={<SelectButton />} className="w-1/2">
+                        <ComboboxValue placeholder="Select timezone" />
                       </ComboboxTrigger>
-                      <ComboboxPopup aria-label="Select currency">
+                      <ComboboxPopup aria-label="Select timezone">
                         <div className="border-b p-2">
                           <ComboboxInput
                             className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
-                            placeholder="e.g. USD"
+                            placeholder="e.g. Asia/Manila"
                             showTrigger={false}
                             startAddon={<SearchIcon />}
                           />
                         </div>
-                        <ComboboxEmpty>No results.</ComboboxEmpty>
+                        <ComboboxEmpty>No timezones found.</ComboboxEmpty>
                         <ComboboxList>
                           {item => (
-                            <ComboboxItem key={item} value={item}>
-                              {item}
+                            <ComboboxItem key={item.value} value={item}>
+                              {item.label}
                             </ComboboxItem>
                           )}
                         </ComboboxList>
@@ -687,7 +794,7 @@ export function SignupForm({
                   </Field>
                   <Field>
                     <span>Primary Language</span>
-                    <Combobox autoHighlight items={languages}>
+                    <Combobox autoHighlight items={languages} defaultValue={language} onValueChange={(v: string | null) => setLanguage(v)}>
                       <ComboboxTrigger render={<SelectButton />} className="w-96">
                         <ComboboxValue placeholder="Select language" />
                       </ComboboxTrigger>
@@ -712,16 +819,116 @@ export function SignupForm({
                     </Combobox>
                   </Field>
                 </Field>
-                <Field orientation="horizontal" className="grid grid-cols-2">
-                  <Field>
-                    <Label htmlFor="dob">Date of Birth</Label>
-                    <Input type="date" id="dob" name="dob" />
+                <Field orientation="horizontal">
+                  <Field className="min-w-72">
+                    <span>Currency</span>
+                    <Combobox autoHighlight items={currencies} onValueChange={(v: string | null) => setCurrency(v ?? '')}>
+                      <ComboboxTrigger render={<SelectButton />} className="w-96">
+                        <ComboboxValue placeholder="Select currency" />
+                      </ComboboxTrigger>
+                      <ComboboxPopup aria-label="Select currency">
+                        <div className="border-b p-2">
+                          <ComboboxInput
+                            className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
+                            placeholder="e.g. USD"
+                            showTrigger={false}
+                            startAddon={<SearchIcon />}
+                          />
+                        </div>
+                        <ComboboxEmpty>No results.</ComboboxEmpty>
+                        <ComboboxList>
+                          {item => (
+                            <ComboboxItem key={item} value={item}>
+                              {item}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxPopup>
+                    </Combobox>
                   </Field>
+                  <Field className="min-w-32">
+                    <span>Session Price</span>
+                    <Controller
+                      name="sessionPrice"
+                      control={control}
+                      rules={{ required:  true, min: 1 }}
+                      render={({ field }) => (
+                        <Input type="number" id="sessionPrice" {...field} />
+                      )}
+                    />
+                  </Field>
+                  <Controller
+                    name="sessionDuration"
+                    control={control}
+                    rules={{ required: true }}
+                    render={({ field }) => (
+                      <Field className="min-w-32">
+                        <span>Session Duration</span>
+                        <Combobox autoHighlight items={[{ id: 1, label: '30 minutes', value: 30 }, { id: 2, label: '60 minutes', value: 60 }]} onValueChange={(v: number | null) => setDuration(v ?? 30)} {...field}>
+                          <ComboboxTrigger render={<SelectButton />} className="w-96">
+                            <ComboboxValue placeholder="Select duration" />
+                          </ComboboxTrigger>
+                          <ComboboxPopup aria-label="Select duration">
+                            <div className="border-b p-2">
+                              <ComboboxInput
+                                className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
+                                placeholder="e.g. USD"
+                                showTrigger={false}
+                                startAddon={<SearchIcon />}
+                              />
+                            </div>
+                            <ComboboxEmpty>No results.</ComboboxEmpty>
+                            <ComboboxList>
+                              {item => (
+                                <ComboboxItem key={item.id} value={item.value}>
+                                  {item.label}
+                                </ComboboxItem>
+                              )}
+                            </ComboboxList>
+                          </ComboboxPopup>
+                        </Combobox>
+                      </Field>
+                    )}
+                  />
+                </Field>
+                <Field orientation="horizontal" className="grid grid-cols-2">
+                  <Controller
+                    name="dob"
+                    control={control}
+                    render={({ field }) => (
+                      <Field>
+                        <Label htmlFor="dob">Date of Birth</Label>
+                        <Input type="date" id="dob" {...field} />
+                      </Field>
+                    )}
+                  />
                   <Controller
                     name="phone"
                     control={control}
                     rules={{ required: true }}
                     render={({ field }) => <PhoneInputField field={field} />}
+                  />
+                </Field>
+                <Field orientation="horizontal">
+                  <Controller
+                    name="categories"
+                    control={control}
+                    render={({ field }) => (
+                      <Field>
+                        <Label htmlFor="categories">Categories</Label>
+                        <Input type="text" id="categories" {...field} />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="subjects"
+                    control={control}
+                    render={({ field }) => (
+                      <Field>
+                        <Label htmlFor="subjects">Subjects</Label>
+                        <Input type="text" id="subjects" {...field} />
+                      </Field>
+                    )}
                   />
                 </Field>
                 <Field>
@@ -790,7 +997,7 @@ export function SignupForm({
                   </Field>
                   <Field>
                     <span>Time zone: </span>
-                    <Combobox autoHighlight defaultValue={tz} items={formattedTimezones}>
+                    <Combobox autoHighlight defaultValue={timezone} items={formattedTimezones} onValueChange={(v: string | null) => setTimezone(v ?? tz)}>
                       <ComboboxTrigger render={<SelectButton />} className="w-96">
                         <ComboboxValue placeholder="Select timezone" />
                       </ComboboxTrigger>
@@ -828,33 +1035,53 @@ export function SignupForm({
             <TabsTab value="parent_guardian">Parent/Guardian</TabsTab>
           </TabsList>
           <TabsPanel value="student_learner">
-            <form>
+            <form onSubmit={handleSubmit(onSubmitStudentForm)}>
               <h1>Student Form</h1>
               <FieldGroup>
-                <Field>
-                  <Label htmlFor="emai">Email</Label>
-                  <Input type="email" id="email" name="email" />
-                </Field>
-                <Field>
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input type="text" id="first_name" name="first_name" />
-                </Field>
-                <Field>
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input type="text" id="last_name" name="last_name" />
-                </Field>
-                <Field>
-                  <Label htmlFor="country">Country</Label>
-                  <Input type="text" id="country" name="country" />
-                </Field>
-                <Field>
-                  <Label htmlFor="dob">Date of Birth</Label>
-                  <Input type="date" id="dob" name="dob" />
-                </Field>
+                <Controller
+                  name="email"
+                  control={control}
+                  render={({ field }) => (
+                    <Field>
+                      <Label htmlFor="emai">Email</Label>
+                      <Input type="email" id="email" {...field} />
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="firstName"
+                  control={control}
+                  render={({ field }) => (
+                    <Field>
+                      <Label htmlFor="first_name">First Name</Label>
+                      <Input type="text" id="first_name" {...field} />
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="lastName"
+                  control={control}
+                  render={({ field }) => (
+                    <Field>
+                      <Label htmlFor="last_name">Last Name</Label>
+                      <Input type="text" id="last_name" {...field} />
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="dob"
+                  control={control}
+                  render={({ field }) => (
+                    <Field>
+                      <Label htmlFor="dob">Date of Birth</Label>
+                      <Input type="date" id="dob" {...field} />
+                    </Field>
+                  )}
+                />
                 <Field orientation="horizontal">
                   <Field>
                     <span>Country: </span>
-                    <Combobox defaultValue={countries[0]} items={countries}>
+                    <Combobox defaultValue={country} items={countries} onValueChange={(v: Country | null) => setCountry(v)}>
                       <ComboboxTrigger
                         className="w-96"
                         render={
@@ -889,7 +1116,7 @@ export function SignupForm({
                   </Field>
                   <Field>
                     <span>Time zone: </span>
-                    <Combobox autoHighlight defaultValue={tz} items={formattedTimezones}>
+                    <Combobox autoHighlight defaultValue={timezone} items={formattedTimezones} onValueChange={(v: string | null) => setTimezone(v ?? tz)}>
                       <ComboboxTrigger render={<SelectButton />} className="w-96">
                         <ComboboxValue placeholder="Select timezone" />
                       </ComboboxTrigger>
@@ -914,7 +1141,15 @@ export function SignupForm({
                     </Combobox>
                   </Field>
                 </Field>
-                <Button className="cursor-pointer">Create Student Account</Button>
+                <Field>
+                  <Controller
+                    name="password"
+                    control={control}
+                    rules={{ required: true }}
+                    render={({ field }) => <PasswordInput field={field} />}
+                  />
+                </Field>
+                <Button type="submit" className="cursor-pointer">Create Student Account</Button>
               </FieldGroup>
             </form>
           </TabsPanel>
@@ -1168,6 +1403,7 @@ import { z } from 'zod'
 import { isValidPhoneNumber } from 'react-phone-number-input'
 import { zodResolver } from '@hookform/resolvers/zod'
 import PhoneInput from './ui/phone-input'
+import { useRouter } from 'next/navigation'
 
 const FormSchema = z.object({
   phone: z

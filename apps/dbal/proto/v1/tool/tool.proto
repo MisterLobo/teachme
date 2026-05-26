@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package v1.tool;
+
+option go_package = "github.com/misterlobo/teachme/v1/tool";
+
+/*
+ * Booking Service
+ */
+service ToolService {
+  /*
+   * GetUserProfile
+   */
+  rpc GetUserProfile (ToolGetUserProfile) returns (ToolSearchResultsResponse);
+  /*
+   * GetUserProfile
+   */
+  rpc MatchTutors (ToolMatchTutors) returns (ToolSearchResultsResponse);
+  /*
+   * VectorSearch
+   */
+  rpc VectorSearch (ToolVectorSearch) returns (ToolSearchResultsResponse);
+  /*
+   * GraphSearch
+   */
+  rpc GraphSearch (ToolGraphSearch) returns (ToolSearchResultsResponse);
+  /*
+   * ScheduleSearch
+   */
+  rpc ScheduleSearch (ToolScheduleSearch) returns (ToolSearchResultsResponse);
+  /*
+   * SaveSuggestions
+   */
+  rpc SaveSuggestions (ToolQuerySuggestions) returns (ToolSearchResultsResponse);
+}
+
+message ToolGetUserProfile {
+  string pid = 1;
+  string id = 2;
+}
+
+message ToolMatchTutors {
+  ToolUserProfile profile = 1;
+}
+
+message ToolMatchedTutors {
+  repeated ToolGraphSearchResultsResult result = 1;
+}
+
+message ToolUserProfile {
+  string id = 1;
+  optional string email = 2;
+  optional string name = 3;
+  optional string first_name = 4;
+  optional string last_name = 5;
+  optional string country = 6;
+  optional string currency = 7;
+  optional string language = 8;
+  optional string locale = 9;
+  repeated string categories = 10;
+  repeated string subjects = 11;
+  repeated string characteristics = 12;
+  optional string availability = 13;
+  repeated string interests = 14;
+  repeated double budget = 15;
+}
+
+message ToolSearchIntent {
+  optional string start_time = 1;
+  optional string timezone = 2;
+  optional string category = 3;
+  optional string subject = 4;
+  optional int32 session_duration = 5;
+  optional float session_price = 6;
+  optional string currency = 7;
+  optional float confidence = 8;
+  optional string locale = 9;
+  repeated float embeddings = 10;
+}
+
+message ToolVectorSearch {
+  ToolSearchIntent intent = 1;
+  repeated float embeddings = 2;
+}
+
+message ToolVectorSearchResults {
+  message ToolVectorSearchResultsPayload {
+    string id = 1;
+    optional string name = 2;
+    optional string country = 3;
+    optional string title = 4;
+    optional string bio = 5;
+    optional string categories = 6;
+    optional string subjects = 7;
+    optional string currency = 8;
+    optional int32 session_duration = 9;
+    optional float session_price = 10;
+    optional string locale = 11;
+  }
+  message ToolVectorSearchResultsPoints {
+    string id = 1;
+    ToolVectorSearchResultsPayload payload = 2;
+  }
+  repeated ToolVectorSearchResultsPoints points = 1;
+}
+
+message ToolGraphSearch {
+  repeated string ids = 1;
+}
+
+message ToolGraphSearchResultsResult {
+  string id = 1;
+  optional string name = 2;
+  optional string country = 3;
+  optional string title = 4;
+  optional string bio = 5;
+  optional string categories = 6;
+  optional string subjects = 7;
+  optional string currency = 8;
+  optional int32 session_duration = 9;
+  optional float session_price = 10;
+  optional string locale = 11;
+}
+
+message ToolGraphSearchResults {
+  repeated ToolGraphSearchResultsResult result = 1;
+}
+
+message ToolScheduleSearch {
+  repeated string ids = 1;
+  string start_time = 2;
+  string timezone = 3;
+}
+
+message ToolScheduleSearchResults {
+  message TutorProfileData {
+    string id = 1;
+    string name = 2;
+    optional string first_name = 3;
+    optional string last_name = 4;
+    optional string country = 5;
+    optional string currency = 6;
+    optional string language = 7;
+    optional string dob = 8;
+    optional int32 session_duration = 9;
+    optional float session_price = 10;
+    optional string categories = 11;
+    optional string subjects = 12;
+    optional string title = 13;
+    optional string bio = 14;
+    optional string interests = 15;
+    optional float rating = 16;
+    optional string timezone = 17;
+  }
+  message ToolScheduleSearchResultsSlots {
+    message ToolScheduleSearchResultsSlotsTimeSlot {
+      string start = 1;
+    }
+    string date_slot = 2;
+    repeated ToolScheduleSearchResultsSlotsTimeSlot time_slots = 3;
+  }
+  message Result {
+    string id = 1;
+    TutorProfileData profile = 2;
+    repeated ToolScheduleSearchResultsSlots slots = 3;
+  }
+  repeated Result results = 1;
+}
+
+message ToolQuerySuggestions {
+  string user_id = 1;
+  string pid = 2;
+  repeated string suggestions = 3;
+}
+
+message ToolSearchResultsResponse {
+  string status = 1;
+  int64 statusCode = 2;
+  oneof data {
+    ToolVectorSearchResults vector_results = 3;
+    ToolGraphSearchResults graph_results = 4;
+    ToolScheduleSearchResults schedule_results = 5;
+    ToolUserProfile user_profile = 6;
+    ToolMatchedTutors matched_tutors = 7;
+  }
+}

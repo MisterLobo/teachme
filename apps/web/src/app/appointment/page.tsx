@@ -1,18 +1,20 @@
 'use client'
 
-import { Header } from '@/components/blocks/header'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Calendar, CalendarDayButton } from '@/components/ui/calendar'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Combobox, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList, ComboboxPopup, ComboboxTrigger, ComboboxValue } from '@/components/ui/combobox'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NumberField, NumberFieldDecrement, NumberFieldGroup, NumberFieldIncrement, NumberFieldInput } from '@/components/ui/number-field'
-import { Select, SelectButton, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { SelectButton } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { isPast } from 'date-fns'
 import { ChevronsUpDownIcon, SearchIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Controller, SubmitHandler, useForm } from 'react-hook-form'
 
 interface Country {
   code: string;
@@ -22,7 +24,6 @@ interface Country {
 }
 
 const countries: Country[] = [
-  { code: "", continent: "", label: "Select country", value: null },
   { code: "af", continent: "Asia", label: "Afghanistan", value: "afghanistan" },
   { code: "al", continent: "Europe", label: "Albania", value: "albania" },
   { code: "dz", continent: "Africa", label: "Algeria", value: "algeria" },
@@ -432,7 +433,52 @@ const countries: Country[] = [
   { code: "zw", continent: "Africa", label: "Zimbabwe", value: "zimbabwe" },
 ]
 
+const languages = [
+  'English',
+  'Filipino',
+  'Japanese',
+  'French',
+  'Spanish',
+  'Italian',
+  'Russian',
+]
+const currencies = [
+  'USD',
+  'PHP',
+  'GBP',
+  'CAD',
+  'AUD',
+  'EUR',
+]
+
+type FormSchema = {
+  category: string,
+  subject: string,
+  tutorCode: string,
+  sessionDuration: number,
+  startDate: string,
+  startTime: string,
+  priceRange: number,
+}
+
 export default function Page() {
+  const {
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    getValues,
+    control,
+  } = useForm<FormSchema>({
+    defaultValues: {
+      tutorCode: '',
+      sessionDuration: 30,
+      startDate: '',
+      startTime: '',
+      category: '',
+      subject: '',
+    },
+  })
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const timezones = Intl.supportedValuesOf('timeZone')
   const formattedTimezones = useMemo(() => {
     return timezones.map(tz => {
@@ -459,7 +505,8 @@ export default function Page() {
     .sort((a, b) => a.numericOffset - b.numericOffset)
   }, [timezones])
   const _defaultTimezone = formattedTimezones.find(tz => tz.value === 'Asia/Manila')
-  const [value, setValue] = useState([3, 8])
+  const [priceRange, setPriceRange] = useState([5, 15])
+  const [currency, setCurrency] = useState('USD')
   const [duration, setDuration] = useState<30 | 60>(30)
   const [selectedTime, setSelectedTime] = useState<string>()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
@@ -473,218 +520,276 @@ export default function Page() {
     { length: 3 },
     (_, i) => new Date(2025, 5, 17 + i)
   )
+  const onSubmit: SubmitHandler<FormSchema> = async (data) => {
+    const response = await fetch(``)
+  }
+
   return (
-    <div className="w-full">
-      <Header />
-      <main className="@container/main mx-auto min-h-screen w-full max-w-5xl px-4 py-12 space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Schedule an Appointment</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Accordion type="single" defaultValue="step-1">
-              <AccordionItem value="step-1">
-                <AccordionTrigger>Appointment Details</AccordionTrigger>
-                <AccordionContent className="relative p-0 md:pr-48 h-full overflow-auto">
-                  <Field className="w-64 mt-8">
-                    <FieldLabel>Tutor Code</FieldLabel>
-                    <Input type="text" id="code" name="code" placeholder="Tutor code" />
-                  </Field>
-                  <Field className="w-full my-4">
-                    <FieldLabel htmlFor="session_len">Session duration in minutes</FieldLabel>
-                    <Field orientation="horizontal">
-                      {/* <Input type="number" id="session_len" name="session_len" defaultValue={duration} /> */}
-                      <NumberField defaultValue={duration} max={60} min={1} className="w-64">
-                        <NumberFieldGroup>
-                          <NumberFieldDecrement />
-                          <NumberFieldInput />
-                          <NumberFieldIncrement />
-                        </NumberFieldGroup>
-                      </NumberField>
-                      <span> minutes</span>
-                    </Field>
-                  </Field>
-                  <h2>Select date and time</h2>
-                  <div className="p-6">
-                    <Calendar
-                      onSelect={setSelectedDate}
-                      defaultMonth={selectedDate}
-                      mode="single"
-                      selected={selectedDate}
-                      disabled={bookedDates}
-                      showOutsideDays={true}
-                      showWeekNumber={true}
-                      className="[--cell-size:--spacing(10)] md:[--cell-size:--spacing(15)]"
-                      formatters={{
-                        formatWeekdayName: date => {
-                          return date.toLocaleDateString('en-US', { weekday: 'short' })
-                        },
-                        formatMonthDropdown: date => {
-                          return date.toLocaleString("default", { month: "long" })
-                        },
-                      }}
-                      modifiers={{
-                        booked: bookedDates,
-                      }}
-                      modifiersClassNames={{
-                        booked: "[&>button]:line-through opacity-100",
-                      }}
-                      components={{
-                        DayButton: ({ children, modifiers, day, ...props }) => {
-                          const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
-                          return (
-                            <CalendarDayButton day={day} modifiers={modifiers} {...props} disabled={modifiers.outside}>
-                              {children}
-                              {/* {!modifiers.outside && (
-                                <span>{isWeekend ? "$120" : "$100"}</span>
-                              )} */}
-                            </CalendarDayButton>
-                          )
-                        },
-                      }}
-                    />
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Schedule an Appointment</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Accordion type="single" defaultValue="step-1">
+            <AccordionItem value="step-1">
+              <AccordionTrigger>Appointment Details</AccordionTrigger>
+              <AccordionContent className="relative p-0 md:pr-48 h-full overflow-auto">
+                <Field className="w-48 mt-8">
+                  <FieldLabel>Tutor Code</FieldLabel>
+                  <Input type="text" id="code" name="code" placeholder="Tutor code" />
+                </Field>
+                <Field className="w-48 my-4">
+                  <span>Session Duration</span>
+                  <Combobox defaultValue={30} autoHighlight items={[{ id: 1, label: '30 minutes', value: 30 }, { id: 2, label: '60 minutes', value: 60 }]} onValueChange={(v: number | null) => setDuration(v as any ?? 30)}>
+                    <ComboboxTrigger render={<SelectButton />} className="w-96">
+                      <ComboboxValue placeholder="Select duration" />
+                    </ComboboxTrigger>
+                    <ComboboxPopup aria-label="Select duration">
+                      <div className="border-b p-2">
+                        <ComboboxInput
+                          className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
+                          placeholder="e.g. USD"
+                          showTrigger={false}
+                          startAddon={<SearchIcon />}
+                        />
+                      </div>
+                      <ComboboxEmpty>No results.</ComboboxEmpty>
+                      <ComboboxList>
+                        {item => (
+                          <ComboboxItem key={item.id} value={item.value}>
+                            {item.label}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxPopup>
+                  </Combobox>
+                </Field>
+                <h2>Select date and time</h2>
+                <div className="p-6">
+                  <Calendar
+                    onSelect={setSelectedDate}
+                    defaultMonth={selectedDate}
+                    mode="single"
+                    selected={selectedDate}
+                    disabled={bookedDates}
+                    showOutsideDays={true}
+                    showWeekNumber={true}
+                    className="[--cell-size:--spacing(10)] md:[--cell-size:--spacing(15)]"
+                    formatters={{
+                      formatWeekdayName: date => {
+                        return date.toLocaleDateString('en-US', { weekday: 'short' })
+                      },
+                      formatMonthDropdown: date => {
+                        return date.toLocaleString("default", { month: "long" })
+                      },
+                    }}
+                    modifiers={{
+                      booked: bookedDates,
+                    }}
+                    modifiersClassNames={{
+                      booked: "[&>button]:line-through opacity-100",
+                    }}
+                    components={{
+                      DayButton: ({ children, modifiers, day, ...props }) => {
+                        const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+                        const disabled = modifiers.outside || isPast(day.date)
+                        return (
+                          <CalendarDayButton day={day} modifiers={modifiers} {...props} disabled={disabled}>
+                            {children}
+                          </CalendarDayButton>
+                        )
+                      },
+                    }}
+                  />
+                </div>
+                {selectedDate && <div className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l">
+                  <div className="grid gap-2">
+                    {timeSlots.map(t => (
+                      <Button
+                        key={t}
+                        variant={selectedTime === t ? 'default' : 'outline'}
+                        onClick={() => setSelectedTime(t)}
+                        className="w-full shadow-none cursor-pointer"
+                      >
+                        {t}
+                      </Button>
+                    ))}
                   </div>
-                  {selectedDate && <div className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l">
-                    <div className="grid gap-2">
-                      {timeSlots.map(t => (
-                        <Button
-                          key={t}
-                          variant={selectedTime === t ? 'default' : 'outline'}
-                          onClick={() => setSelectedTime(t)}
-                          className="w-full shadow-none cursor-pointer"
-                        >
-                          {t}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>}
-                  <CardFooter className="flex flex-col gap-4 border-t px-6 !py-5 md:flex-row">
-                    <div className="text-sm">
-                      {selectedDate && selectedTime ? (
-                        <>
-                          Your meeting is booked for{" "}
-                          <span className="font-medium">
-                            {" "}
-                            {selectedDate?.toLocaleDateString("en-US", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                            })}{" "}
-                          </span>
-                          at <span className="font-medium">{selectedTime}</span>.
-                        </>
-                      ) : (
-                        <>Select a date and time for your meeting.</>
-                      )}
-                    </div>
-                    <Button
-                      disabled={!selectedDate || !selectedTime}
-                      className="w-full md:ml-auto md:w-auto cursor-pointer"
-                      variant="outline"
-                    >
-                      Continue
-                    </Button>
-                  </CardFooter>
-                  {/* <Field orientation="horizontal">
-                    <Button className="cursor-pointer">Smart Select</Button>
-                    <Button disabled variant="outline" className="cursor-pointer">Use AI assistant (coming soon)</Button>
-                  </Field> */}
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="step-2">
-                <AccordionTrigger>Filters</AccordionTrigger>
-                <AccordionContent className="space-y-4">
+                </div>}
+                <CardFooter className="flex flex-col gap-4 border-t px-6 !py-5 md:flex-row">
+                  <div className="text-sm">
+                    {selectedDate && selectedTime ? (
+                      <>
+                        Your meeting is booked for{" "}
+                        <span className="font-medium">
+                          {" "}
+                          {selectedDate?.toLocaleDateString("en-US", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                          })}{" "}
+                        </span>
+                        at <span className="font-medium">{selectedTime}</span>.
+                      </>
+                    ) : (
+                      <>Select a date and time for your meeting.</>
+                    )}
+                  </div>
+                  <Button
+                    disabled={!selectedDate || !selectedTime}
+                    className="w-full md:ml-auto md:w-auto cursor-pointer"
+                    variant="outline"
+                  >
+                    Continue
+                  </Button>
+                </CardFooter>
+                {/* <Field orientation="horizontal">
+                  <Button className="cursor-pointer">Smart Select</Button>
+                  <Button disabled variant="outline" className="cursor-pointer">Use AI assistant (coming soon)</Button>
+                </Field> */}
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="step-2">
+              <AccordionTrigger>Filters</AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                <Field>
+                  <FieldLabel className="flex flex-row" htmlFor="price_range">
+                    <span>Price range</span>
+                    <span>{priceRange.map(v => `$${v}`).join(' - ')}</span>
+                  </FieldLabel>
+                  <Slider value={priceRange} onValueChange={setPriceRange} defaultValue={[3, 8]} max={100} step={1} />
+                </Field>
+                <Field orientation="horizontal">
+                  <Controller
+                    name="category"
+                    control={control}
+                    render={({ field }) => (
+                      <Field>
+                        <Label htmlFor="category">Category</Label>
+                        <Input type="text" id="category" {...field} placeholder="e.g. Language, Mathematics, etc" />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="subject"
+                    control={control}
+                    render={({ field }) => (
+                      <Field>
+                        <Label htmlFor="subject">Subject</Label>
+                        <Input type="text" id="subject" {...field} placeholder="e.g. Physics, English, Algebra, Calculus, etc." />
+                      </Field>
+                    )}
+                  />
+                </Field>
+                <Field orientation="horizontal">
                   <Field>
-                    <FieldLabel className="flex flex-row" htmlFor="price_range">
-                      <span>Price range</span>
-                      <span>{value.map(v => `$${v}`).join(' - ')}</span>
-                    </FieldLabel>
-                    <Slider value={value} onValueChange={setValue} defaultValue={[3, 8]} max={100} step={1} />
+                    <span>Country: </span>
+                    <Combobox items={countries}>
+                      <ComboboxTrigger render={<SelectButton />} className="w-96">
+                        <ComboboxValue placeholder="Select country" />
+                      </ComboboxTrigger>
+                      <ComboboxPopup aria-label="Select country">
+                        <div className="border-b p-2">
+                          <ComboboxInput
+                            className="rounded-md before:rounded-[calc(var(--radius-md)-1px)]"
+                            placeholder="e.g. United Kingdom"
+                            showTrigger={false}
+                            startAddon={<SearchIcon />}
+                          />
+                        </div>
+                        <ComboboxEmpty>No countries found.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(country: Country) => (
+                            <ComboboxItem key={country.code} value={country}>
+                              {country.label}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxPopup>
+                    </Combobox>
                   </Field>
-                  <p>Category</p>
-                  <p>Subject</p>
-                  <Field orientation="horizontal">
-                    <Field>
-                      <span>Country: </span>
-                      <Combobox defaultValue={countries[0]} items={countries}>
-                        <ComboboxTrigger
-                          className="w-96"
-                          render={
-                            <Button
-                              className="w-full justify-between font-normal"
-                              variant="outline"
-                            />
-                          }
-                        >
-                          <ComboboxValue />
-                          <ChevronsUpDownIcon className="-me-1!" />
-                        </ComboboxTrigger>
-                        <ComboboxPopup aria-label="Select country">
-                          <div className="border-b p-2">
-                            <ComboboxInput
-                              className="rounded-md before:rounded-[calc(var(--radius-md)-1px)]"
-                              placeholder="e.g. United Kingdom"
-                              showTrigger={false}
-                              startAddon={<SearchIcon />}
-                            />
-                          </div>
-                          <ComboboxEmpty>No countries found.</ComboboxEmpty>
-                          <ComboboxList>
-                            {(country: Country) => (
-                              <ComboboxItem key={country.code} value={country}>
-                                {country.label}
-                              </ComboboxItem>
-                            )}
-                          </ComboboxList>
-                        </ComboboxPopup>
-                      </Combobox>
-                    </Field>
-                    <Field>
-                      <span>Time zone: </span>
-                      <Combobox autoHighlight items={formattedTimezones}>
-                        <ComboboxTrigger render={<SelectButton />} className="w-96">
-                          <ComboboxValue placeholder="Select timezone" />
-                        </ComboboxTrigger>
-                        <ComboboxPopup aria-label="Select timezone">
-                          <div className="border-b p-2">
-                            <ComboboxInput
-                              className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
-                              placeholder="e.g. Asia/Manila"
-                              showTrigger={false}
-                              startAddon={<SearchIcon />}
-                            />
-                          </div>
-                          <ComboboxEmpty>No timezones found.</ComboboxEmpty>
-                          <ComboboxList>
-                            {item => (
-                              <ComboboxItem key={item.value} value={item}>
-                                {item.label}
-                              </ComboboxItem>
-                            )}
-                          </ComboboxList>
-                        </ComboboxPopup>
-                      </Combobox>
-                    </Field>
+                  <Field>
+                    <span>Time zone: </span>
+                    <Combobox autoHighlight defaultValue={tz} items={formattedTimezones}>
+                      <ComboboxTrigger render={<SelectButton />} className="w-96">
+                        <ComboboxValue placeholder="Select timezone" />
+                      </ComboboxTrigger>
+                      <ComboboxPopup aria-label="Select timezone">
+                        <div className="border-b p-2">
+                          <ComboboxInput
+                            className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
+                            placeholder="e.g. Asia/Manila"
+                            showTrigger={false}
+                            startAddon={<SearchIcon />}
+                          />
+                        </div>
+                        <ComboboxEmpty>No timezones found.</ComboboxEmpty>
+                        <ComboboxList>
+                          {item => (
+                            <ComboboxItem key={item.value} value={item}>
+                              {item.label}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxPopup>
+                    </Combobox>
                   </Field>
-                  <p>Language</p>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="step-3">
-                <AccordionTrigger>Billing</AccordionTrigger>
-                <AccordionContent>
-                  <Button type="button" className="cursor-pointer">Add Payment Method</Button>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="step-4">
-                <AccordionTrigger>Finish</AccordionTrigger>
-                <AccordionContent>
-                  <Button type="button" className="cursor-pointer">Create Appointment</Button>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+                </Field>
+                <Field orientation="horizontal">
+                  <Field className="w-48">
+                    <span>Currency</span>
+                    <Combobox autoHighlight items={currencies} onValueChange={(v: string | null) => setCurrency(v ?? '')}>
+                      <ComboboxTrigger render={<SelectButton />} className="w-96">
+                        <ComboboxValue placeholder="Select currency" />
+                      </ComboboxTrigger>
+                      <ComboboxPopup aria-label="Select currency">
+                        <div className="border-b p-2">
+                          <ComboboxInput
+                            className="rounded-md before:rounded-[calc(var(--radius-md)+10px)]"
+                            placeholder="e.g. USD"
+                            showTrigger={false}
+                            startAddon={<SearchIcon />}
+                          />
+                        </div>
+                        <ComboboxEmpty>No results.</ComboboxEmpty>
+                        <ComboboxList>
+                          {item => (
+                            <ComboboxItem key={item} value={item}>
+                              {item}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxPopup>
+                    </Combobox>
+                  </Field>
+                </Field>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="step-3">
+              <AccordionTrigger>Billing</AccordionTrigger>
+              <AccordionContent>
+                <Dialog modal>
+                  <DialogTrigger asChild>
+                    <Button type="button" className="cursor-pointer">Add Payment Method</Button>
+                  </DialogTrigger>
+                  <DialogContent className="min-w-xl max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>Add Payment Method</DialogTitle>
+                    </DialogHeader>
+                  </DialogContent>
+                </Dialog>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="step-4">
+              <AccordionTrigger>Finish</AccordionTrigger>
+              <AccordionContent>
+                <Button type="button" className="cursor-pointer">Create Appointment</Button>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </CardContent>
+      </Card>
+    </form>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useScroll } from '../ui/use-scroll';
 import { createPortal } from 'react-dom';
 import { Button, buttonVariants } from '../ui/button';
@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { VercelNotificationPopover } from '../ui/vercel-notification-popover';
 import UserDropdown from '../ui/user-dropdown';
+import { isCustomer, isTenant } from '@/lib/actions';
+import { useQuery } from '@tanstack/react-query';
 
 type MobileMenuProps = React.ComponentProps<'div'> & {
 	open: boolean;
@@ -48,8 +50,16 @@ const WordmarkIcon = (props: React.ComponentProps<"svg">) => (
   </svg>
 )
 
-export function Header() {
+export function Header({ loggedIn }: { loggedIn: boolean }) {
   const router = useRouter()
+  const { data: customer } = useQuery({
+    queryKey: ['isCustomer'],
+    queryFn: isCustomer,
+  })
+  const { data: tenant } = useQuery({
+    queryKey: ['isTenant'],
+    queryFn: isTenant,
+  })
 	const [open, setOpen] = useState(false);
 	const scrolled = useScroll(10);
 
@@ -57,18 +67,27 @@ export function Header() {
 		{
 			label: 'Browse',
 			href: '/browse',
+			show: customer,
 		},
 		{
 			label: 'Smart Appointment',
 			href: '/appointment',
+			show: customer,
+		},
+		{
+			label: 'Dashboard',
+			href: '/dashboard',
+			show: tenant,
 		},
 		{
 			label: 'Calendar',
 			href: '/calendar',
+			show: true,
 		},
 		{
 			label: 'Profile',
 			href: '/me',
+			show: true,
 		},
 	];
 
@@ -86,7 +105,7 @@ export function Header() {
 	return (
 		<header
 			className={cn('sticky top-0 z-50 w-full border-b border-transparent', {
-				'bg-background/95 supports-[backdrop-filter]:bg-background/50 border-border backdrop-blur-lg':
+				'bg-background/95 supports-backdrop-filter:bg-background/50 border-border backdrop-blur-lg':
 					scrolled,
 			})}
 		>
@@ -95,15 +114,23 @@ export function Header() {
 					<WordmarkIcon className="h-4" />
 				</div>
 				<div className="hidden items-center gap-2 md:flex">
-					{links.map((link) => (
-						<Link key={link.label} className={buttonVariants({ variant: 'ghost' })} href={link.href}>
-							{link.label}
-						</Link>
-					))}
-					<Button className="cursor-pointer" variant="outline" onClick={() => router.push('/login')}>Sign In</Button>
-					<Button className="cursor-pointer" onClick={() => router.push('/signup')}>Get Started</Button>
-					<VercelNotificationPopover />
-					<UserDropdown />
+					{loggedIn ?
+					 	<>
+						{links.map((link) => link.show && (
+							<Link key={link.label} className={buttonVariants({ variant: 'ghost' })} href={link.href}>
+								{link.label}
+							</Link>
+						))}
+						<VercelNotificationPopover />
+						<UserDropdown />
+					 	</> :
+					 	<>
+						<Button variant="outline" className="w-auto bg-transparent" onClick={() => router.push('/login')}>
+							Sign In
+						</Button>
+						<Button className="w-auto" onClick={() => router.push('/signup')}>Get Started</Button>
+					 	</>
+					}
 				</div>
 				<Button
 					size="icon"
@@ -133,12 +160,18 @@ export function Header() {
 					))}
 				</div>
 				<div className="flex flex-col gap-2">
-					<Button variant="outline" className="w-full bg-transparent">
-						Sign In
-					</Button>
-					<Button className="w-full">Get Started</Button>
-					<VercelNotificationPopover />
-					<UserDropdown />
+					{loggedIn ?
+					 	<>
+						<VercelNotificationPopover />
+						<UserDropdown />
+					 	</> :
+					 	<>
+						<Button variant="outline" className="w-full bg-transparent">
+							Sign In
+						</Button>
+						<Button className="w-full">Get Started</Button>
+					 	</>
+					}
 				</div>
 			</MobileMenu>
 		</header>

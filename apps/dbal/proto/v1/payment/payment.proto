@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package v1.payment;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/misterlobo/teachme/v1/payment";
+
+/*
+ * PaymentService
+ */
+service PaymentService {
+  /*
+  * Setup
+  */
+  rpc Setup (PaymentSetup) returns (PaymentSetupResponse);
+
+  /*
+  * Process
+  */
+  rpc Process (PaymentProcess) returns (PaymentProcessResponse);
+
+  /*
+  * ListMethods
+  */
+  rpc ListMethods (PaymentListMethods) returns (PaymentListMethodsResponse);
+
+  /*
+  * AttachMethod
+  */
+  rpc AttachMethod (PaymentAttachMethod) returns (PaymentAttachMethodResponse);
+}
+
+/*
+ * PaymentSetup
+ */
+message PaymentSetup {
+  string recipient_id = 1;
+  optional string sender_id = 2;
+}
+
+/*
+ * PaymentSetupResponse
+ */
+message PaymentSetupResponse {
+  string setup_intent_id = 1;
+  optional string client_secret = 2;
+}
+
+/*
+ * PaymentProcess
+ */
+message PaymentProcess {
+  string payment_intent_id = 1;
+}
+
+/*
+ * PaymentProcessResponse
+ */
+message PaymentProcessResponse {
+  string payment_intent_id = 1;
+}
+
+message PaymentMethodCard {
+  string last4 = 1;
+  int64 exp_month = 2;
+  int64 exp_year = 3;
+  optional string brand = 4;
+  optional string display_brand = 5;
+  optional string description = 6;
+  optional string country = 7;
+  optional string issuer = 8;
+  optional string fingerprint = 9;
+}
+
+message PaymentMethod {
+  string id = 1;
+  optional PaymentMethodCard card = 2;
+  optional string type = 3;
+  optional bool is_default = 4;
+}
+
+message PaymentListMethods {
+  optional bool default = 1;
+}
+
+message PaymentListMethodsResponse {
+  string status = 1;
+  repeated PaymentMethod data = 2;
+}
+
+message PaymentAttachMethod {
+  string id = 1;
+}
+
+message PaymentAttachMethodResponse {
+  string status = 1;
+  optional int64 status_code = 2;
+  optional string error = 3;
+  optional string attached_id = 4;
+}

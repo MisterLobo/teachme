@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package v1.billing;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/misterlobo/teachme/v1/billing";
+
+/*
+ * Billing Service
+ */
+service BillingService {
+  /*
+  * AddPaymentMethod
+  */
+  rpc AddPaymentMethod (BillingAddPaymentMethod) returns (BillingResponse);
+  /*
+  * ListPaymentMethods
+  */
+  rpc ListPaymentMethods (BillingListPaymentMethods) returns (BillingResponse);
+  /*
+  * ProcessPayment
+  */
+  rpc ProcessPayment (BillingProcessPayment) returns (BillingResponse);
+}
+
+/*
+ * BillingAddPaymentMethod
+ */
+message BillingAddPaymentMethod {
+}
+
+/*
+ * BillingListPaymentMethods
+ */
+message BillingListPaymentMethods {
+}
+
+/*
+ * BillingProcessPayment
+ */
+message BillingProcessPayment {
+  string currency = 1;
+  double amount = 2;
+  optional string promo_code = 3;
+}
+
+/*
+ * BillingResponse
+ */
+message BillingResponse {
+  string status = 1;
+  optional google.protobuf.Any data = 2;
+}

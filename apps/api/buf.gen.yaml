@@ -1,0 +1,12 @@
+version: v2
+clean: true
+inputs:
+  - directory: proto
+plugins:
+  - local: node_modules/ts-proto/protoc-gen-ts_proto
+    out: src/proto
+    include_imports: true
+    opt:
+      - addGrpcMetadata=true
+      - nestJs=true
+      - addNestjsRestParameter=true

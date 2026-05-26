@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "tutors")]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -13,32 +14,127 @@ pub struct Model {
     pub first_name: String,
     pub last_name: String,
     pub country: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
     pub currency: String,
-    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dob: Option<Date>,
-    pub primary_language: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_language: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub other_languages: Option<Json>,
+    #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub languages: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bio: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub categories: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subjects: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
-    pub categories_subjects: Option<Json>,
-    #[sea_orm(column_type = "JsonBinary")]
-    pub availability_schedules: Json,
-    #[sea_orm(column_type = "JsonBinary")]
-    pub event_types: Json,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub availability_schedules: Option<Json>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_types: Option<Json>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stripe_connect_id: Option<String>,
     pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_calendar: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub calendars: Option<Json>,
     pub tenant_id: Uuid,
     pub session_duration: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_price: Option<Decimal>,
-    // pub embedding: PgVector,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cal_metadata: Option<Json>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(has_many = "super::appointments::Entity")]
+    Appointments,
+    #[sea_orm(
+        belongs_to = "super::organizations::Entity",
+        from = "Column::OrganizationId",
+        to = "super::organizations::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Organizations,
+    #[sea_orm(
+        belongs_to = "super::tenants::Entity",
+        from = "Column::TenantId",
+        to = "super::tenants::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Tenants,
+    #[sea_orm(has_many = "super::tutor_boosts::Entity")]
+    TutorBoosts,
+    #[sea_orm(has_many = "super::tutor_reviews::Entity")]
+    TutorReviews,
+    #[sea_orm(has_many = "super::credit_usages::Entity")]
+    CreditUsages,
+    #[sea_orm(has_one = "super::credits::Entity")]
+    Credits,
+}
+
+impl Related<super::appointments::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Appointments.def()
+    }
+}
+
+impl Related<super::organizations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Organizations.def()
+    }
+}
+
+impl Related<super::tenants::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenants.def()
+    }
+}
+
+impl Related<super::tutor_boosts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TutorBoosts.def()
+    }
+}
+
+impl Related<super::tutor_reviews::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TutorReviews.def()
+    }
+}
+
+impl Related<super::credits::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Credits.def()
+    }
+}
+
+impl Related<super::credit_usages::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CreditUsages.def()
+    }
+}

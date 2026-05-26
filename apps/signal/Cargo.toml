@@ -18,7 +18,7 @@ tokio = { version = "1.45", default-features = false, features = [
   "rt-multi-thread",
 ] }
 async-trait = { version = "0.1" }
-axum = { version = "0.8" }
+axum = { version = "0.8", features = ["http2"] }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 regex = { version = "1.11" }
@@ -33,6 +33,7 @@ sea-orm = { version = "1.1", features = [
   "with-json",
   "with-chrono",
   "with-time",
+  "with-rust_decimal",
   "postgres-vector"
 ] }
 chrono = { version = "0.4" }
@@ -41,12 +42,98 @@ uuid = { version = "1.6", features = ["v4", "v7"] }
 include_dir = { version = "0.7" }
 mediasoup = "0.20.0"
 lazy_static = "1.5.0"
-socketioxide = "0.18.2"
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+socketioxide = { version = "0.18.2", features = ["extensions", "state"] }
+jsonwebtoken = { version = "9.3", features = ["pem"] }
 missive = { version = "0.6.2", features = ["local","smtp", "resend", "sendgrid", "gmail"] }
-reqwest = "0.13.2"
+reqwest = { version = "0.13", features = ["json", "query", "cookies", "gzip", "form", "multipart"] }
+futures = "0.3.32"
+rayon = { version = "1.11.0" }
 fastembed = { version = "5", features = ["qwen3", "nomic-v2-moe"]}
-rust-task-queue = { version = "0.1", features = ["full"] }
+rust-task-queue = { version = "0.1", features = ["tracing", "auto-register", "axum-integration", "config", "cli"] }
+anyhow = "1.0.102"
+pgvector = { version = "0.4", features = ["postgres"] }
+#ruvector-postgres = "2.0.5"
+qdrant-client = "1.17.0"
+rust_decimal = "1.41"
+dotenv = "0.15.0"
+slugify = "0.1.0"
+async-stripe = { version = "=1.0.0-rc.3" }
+async-stripe-billing = { version = "=1.0.0-rc.3", features = ["full"] }
+async-stripe-checkout = { version = "=1.0.0-rc.3", features = ["full"] }
+async-stripe-connect = { version = "=1.0.0-rc.3", features = ["full"] }
+async-stripe-core = { version = "=1.0.0-rc.3", features = ["full"] }
+async-stripe-payment = { version = "=1.0.0-rc.3", features = ["full"] }
+async-stripe-product = { version = "=1.0.0-rc.3", features = ["full"] }
+async-stripe-shared = { version = "=1.0.0-rc.3" }
+async-stripe-webhook = { version = "1.0.0-rc.3"}
+async-stripe-types = "1.0.0-rc.4"
+#async-stripe = { version = "0.41", features = ["runtime-tokio-hyper"] }
+tokio-cron-scheduler = { version = "0.15.1", features = ["english", "postgres_storage", "nats_storage", "signal"] }
+#tokio-cron-scheduler = { version = "0.15.1" }
+tower = { version = "0.5.1", features = ["full"] }
+tower-http = { version = "0.6.8", features = ["cors", "fs"] }
+event-listener-primitives = "2.0.1"
+parking_lot = "0.12.5"
+async-lock = "3.4.2"
+futures-lite = "2.6.1"
+dashmap = "6.1.0"
+rand = { workspace = true }
+rand_core = { workspace = true }
+posthog-rs = "0.5.0"
+redis = { version = "1.2.0", features = [
+  "ahash",
+  "aio",
+  "bb8",
+  "bigdecimal",
+  "cache-aio",
+  "connection-manager",
+  "json",
+  "num-bigint",
+  "tls-rustls",
+  "tokio-comp",
+  "tokio-rustls-comp",
+  "r2d2",
+  "rust_decimal",
+  "uuid"
+] }
+url = "2.5.8"
+async-nats = { version = "0.47.0", features = ["jetstream"] }
+tonic = { workspace = true }
+neo4rs = "0.8.0"
+vaultrs = "0.8.0"
+gstreamer = "0.25"
+gstreamer-video = "0.25"
+gstreamer-audio = "0.25"
+gstreamer-app = "0.25"
+gstreamer-pbutils = "0.25"
+prost = { workspace = true }
+tonic-prost = { workspace = true }
+prost-types = { workspace = true }
+sscanf = "0.5.0"
+rustls = { version = "0.23.38", features = ["ring"]}
+signal_proto = { path = "./signal_proto" }
+rustls-pemfile = "2.2.0"
+rsa = { version = "0.9.10", features = ["std"] }
+pkcs1 = { version = "0.7.5", features = ["pem"] }
+pkcs8 = { version = "0.10.2", features = ["pem"] }
+apalis = { version = "1.0.0-rc.7", features = ["catch-panic", "filter", "limit", "retry", "timeout", "prometheus"] }
+apalis-core = { version = "1.0.0-rc.7" }
+apalis-redis = { version = "1.0.0-rc.7"}
+apalis-cron = { version = "1.0.0-rc.7" }
+apalis-nats = "0.1.0-rc.3"
+apalis-board = { version = "1.0.0-rc.7", features = ["axum"] }
+apalis-codec = { version = "0.1.0-rc.7", features = ["msgpack"] }
+apalis-workflow = "0.1.0-rc.7"
+tower-service = "0.3.3"
+axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+tower-resilience-circuitbreaker = "0.9.3"
+
+argon2 = "0.5"
+opaque-ke = { workspace = true }
+base64 = { workspace = true }
+generic-array = "=0.14.7"
+sha2 = "0.10.9"
+mongodb = { version = "3.6.0", features = ["bson-3"] }
 
 [[bin]]
 name = "signal-cli"

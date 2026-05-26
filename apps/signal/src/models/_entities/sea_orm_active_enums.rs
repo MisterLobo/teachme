@@ -4,20 +4,46 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "appointment_status")]
+pub enum AppointmentStatus {
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "confirmed")]
+    Confirmed,
+    #[sea_orm(string_value = "ongoing")]
+    Ongoing,
+    #[sea_orm(string_value = "cancelled")]
+    Cancelled,
+    #[sea_orm(string_value = "completed")]
+    Completed,
+    #[sea_orm(string_value = "noshow_host")]
+    NoShowHost,
+    #[sea_orm(string_value = "noshow_attendee")]
+    NoShowAttendee,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "credit_status")]
+pub enum CreditStatus {
+    #[sea_orm(string_value = "success")]
+    Success,
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "cancelled")]
+    Cancelled,
+    #[sea_orm(string_value = "refunded")]
+    Refunded,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "customer_type")]
 pub enum CustomerType {
     #[sea_orm(string_value = "student_learner")]
     StudentLearner,
     #[sea_orm(string_value = "parent_guardian")]
     ParentGuardian,
-}
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
-#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "owner_type")]
-pub enum OwnerType {
-    #[sea_orm(string_value = "student_learner")]
-    StudentLearner,
-    #[sea_orm(string_value = "parent_guardian")]
-    ParentGuardian,
+    #[sea_orm(string_value = "tutor_single")]
+    TutorSingle,
+    #[sea_orm(string_value = "tutor_organization")]
+    TutorOrganization,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "tenant_type")]
@@ -26,4 +52,12 @@ pub enum TenantType {
     Individual,
     #[sea_orm(string_value = "organization")]
     Organization,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Copy, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "user_role")]
+pub enum UserRole {
+    #[sea_orm(string_value = "tenant")]
+    Tenant,
+    #[sea_orm(string_value = "customer")]
+    Customer,
 }
